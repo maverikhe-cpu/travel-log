@@ -5,6 +5,7 @@
 
 // 高德地图配置
 const AMAP_KEY = process.env.NEXT_PUBLIC_AMAP_KEY || '';
+const AMAP_SECURITY_JS_CODE = process.env.NEXT_PUBLIC_AMAP_SECURITY_JS_CODE || '';
 const AMAP_VERSION = '2.0';
 
 // 高德地图插件列表
@@ -62,12 +63,38 @@ export async function loadAMap(): Promise<void> {
   // 动态导入 AMapLoader，避免服务端渲染时出现 "window is not defined" 错误
   const { default: AMapLoader } = await import('@amap/amap-jsapi-loader');
 
-  loadPromise = AMapLoader.load({
+  // 高德地图安全密钥必须通过 window._AMapSecurityConfig 全局变量设置
+  // 必须在加载地图 API 之前设置，否则会导致 INVALID_USER_SCODE 错误
+  if (typeof window !== 'undefined' && AMAP_SECURITY_JS_CODE) {
+    (window as any)._AMapSecurityConfig = {
+      securityJsCode: AMAP_SECURITY_JS_CODE,
+    };
+  }
+
+  // 构建加载配置（不再包含 securityJsCode，因为已通过全局变量设置）
+  const loadConfig: any = {
     key: AMAP_KEY,
     version: AMAP_VERSION,
     plugins: PLUGINS,
-  }).then(() => {
+  };
+
+  loadPromise = AMapLoader.load(loadConfig).then(() => {
     mapLoaded = true;
+    // 验证 AMap 对象和插件是否正确加载
+    const AMap = (window as any).AMap;
+    if (AMap) {
+      console.log('AMap 加载成功，插件状态:', {
+        AutoComplete: !!AMap.AutoComplete,
+        PlaceSearch: !!AMap.PlaceSearch,
+        Geolocation: !!AMap.Geolocation,
+        Geocoder: !!AMap.Geocoder,
+      });
+    } else {
+      console.error('AMap 对象未找到');
+    }
+  }).catch((err) => {
+    console.error('AMap 加载失败:', err);
+    throw err;
   });
 
   return loadPromise;
@@ -82,14 +109,39 @@ export async function createMap(
 ): Promise<any> {
   await loadAMap();
 
-  const map = new (window as any).AMap.Map(container, {
+  const AMap = (window as any).AMap;
+  if (!AMap) {
+    throw new Error('AMap 对象未加载，请检查网络连接');
+  }
+
+  console.log('创建地图实例，容器:', typeof container === 'string' ? container : 'HTMLElement');
+
+  const map = new AMap.Map(container, {
     zoom: options.zoom || 12,
     center: options.center || [104.065735, 30.659462], // 默认成都
     mapStyle: options.mapStyle || 'amap://styles/normal',
     viewMode: '2D',
   });
 
-  return map;
+  // 等待地图完全加载
+  return new Promise((resolve) => {
+    map.on('complete', () => {
+      console.log('地图加载完成');
+      resolve(map);
+    });
+
+    // 如果地图已经加载完成，直接返回
+    if (map.getStatus() === 'complete') {
+      console.log('地图已加载完成');
+      resolve(map);
+    }
+
+    // 超时保护
+    setTimeout(() => {
+      console.warn('地图加载超时，但将继续使用');
+      resolve(map);
+    }, 5000);
+  });
 }
 
 /**
@@ -112,37 +164,92 @@ export async function searchPOI(
   await loadAMap();
 
   return new Promise((resolve, reject) => {
-    const placeSearch = new (window as any).AMap.PlaceSearch({
-      city: city || '全国',
-      pageSize: limit,
-      pageIndex: 1,
-      extensions: 'all',
-    });
+    try {
+      const AMap = (window as any).AMap;
 
-    placeSearch.search(keyword, (status: string, result: any) => {
-      if (status === 'complete' && result.poiList) {
-        const pois: POI[] = result.poiList.pois.map((poi: any) => ({
-          id: poi.id,
-          name: poi.name,
-          address: poi.address || '',
-          district: poi.adname || '',
-          city: poi.cityname || '',
-          longitude: poi.location.lng,
-          latitude: poi.location.lat,
-          type: poi.type || '',
-          tel: poi.tel,
-          distance: poi.distance,
-        }));
-        resolve({
-          pois,
-          count: result.poiList.count,
-        });
-      } else if (status === 'no_data') {
+      if (!AMap || !AMap.PlaceSearch) {
+        console.error('AMap.PlaceSearch 未加载');
         resolve({ pois: [], count: 0 });
-      } else {
-        reject(new Error(result.info || '搜索失败'));
+        return;
       }
-    });
+
+      const placeSearch = new AMap.PlaceSearch({
+        city: city || '全国',
+        pageSize: limit,
+        pageIndex: 1,
+        extensions: 'all',
+      });
+
+      placeSearch.search(keyword, (status: string, result: any) => {
+        console.log('PlaceSearch result:', { status, keyword, result });
+
+        // 处理错误状态
+        if (status === 'error') {
+          // 尝试多种方式获取错误信息
+          const errorInfo = result?.info || result?.result || result?.message || '未知错误';
+          console.error('PlaceSearch 错误:', errorInfo);
+          console.error('PlaceSearch 完整错误对象:', result);
+          
+          // INVALID_USER_SCODE 错误提示（安全密钥错误）
+          const errorStr = String(errorInfo);
+          if (errorStr === 'INVALID_USER_SCODE' || errorStr.includes('INVALID_USER_SCODE')) {
+            console.error('❌ 高德地图安全密钥（Security JS Code）配置错误！');
+            console.error('请检查：');
+            console.error('1. 登录高德控制台：https://console.amap.com/');
+            console.error('2. 进入你的应用 → 找到「安全密钥」设置');
+            console.error('3. 确认安全密钥与 API Key 匹配（同一个应用下）');
+            console.error('4. 检查环境变量 NEXT_PUBLIC_AMAP_SECURITY_JS_CODE 是否正确');
+            console.error('5. 如果未配置安全密钥，可以暂时不设置该环境变量（但推荐配置）');
+            console.error('6. 如果已配置，请确保安全密钥格式正确（通常是 UUID 或随机字符串）');
+          }
+          // USERKEY_PLAT_NOMATCH 错误提示
+          else if (errorStr === 'USERKEY_PLAT_NOMATCH' || errorStr.includes('USERKEY_PLAT_NOMATCH')) {
+            console.error('❌ 高德地图 API Key 平台类型不匹配！');
+            console.error('请检查：');
+            console.error('1. 确保使用的是 Web 端（JS API）的 Key，不是移动端或其他平台的 Key');
+            console.error('2. 在高德控制台配置安全密钥（Security JS Code）');
+            console.error('3. 在高德控制台配置域名白名单（允许 localhost:3000 和你的生产域名）');
+            console.error('4. 如果已配置安全密钥，请确保环境变量 NEXT_PUBLIC_AMAP_SECURITY_JS_CODE 已设置');
+          }
+          // 其他错误
+          else {
+            console.error('❌ 高德地图搜索失败:', errorInfo);
+            console.error('请检查 API Key 和安全密钥配置是否正确');
+          }
+          
+          resolve({ pois: [], count: 0 });
+          return;
+        }
+
+        if (status === 'complete' && result.poiList) {
+          const pois: POI[] = result.poiList.pois.map((poi: any) => ({
+            id: poi.id,
+            name: poi.name,
+            address: poi.address || '',
+            district: poi.adname || '',
+            city: poi.cityname || '',
+            longitude: poi.location.lng,
+            latitude: poi.location.lat,
+            type: poi.type || '',
+            tel: poi.tel,
+            distance: poi.distance,
+          }));
+          resolve({
+            pois,
+            count: result.poiList.count,
+          });
+        } else if (status === 'no_data') {
+          resolve({ pois: [], count: 0 });
+        } else {
+          // 返回空数组而不是拒绝，让 UI 继续显示
+          console.warn('PlaceSearch 搜索未返回有效结果:', { status, result, info: result?.info });
+          resolve({ pois: [], count: 0 });
+        }
+      });
+    } catch (error) {
+      console.error('PlaceSearch 搜索异常:', error);
+      resolve({ pois: [], count: 0 });
+    }
   });
 }
 
@@ -156,34 +263,88 @@ export async function getSuggestions(
   await loadAMap();
 
   return new Promise((resolve, reject) => {
-    const autoOptions = {
-      city: city || '全国',
-      input: keyword,
-    };
+    try {
+      const AMap = (window as any).AMap;
 
-    const autoComplete = new (window as any).AMap.AutoComplete(autoOptions);
-
-    autoComplete.search(keyword, (status: string, result: any) => {
-      if (status === 'complete' && result.tips) {
-        const pois: POI[] = result.tips
-          .filter((tip: any) => tip.location && tip.id)
-          .map((tip: any) => ({
-            id: tip.id,
-            name: tip.name,
-            address: tip.address || '',
-            district: tip.district || '',
-            city: tip.city ? tip.city.name : '',
-            longitude: tip.location.lng,
-            latitude: tip.location.lat,
-            type: tip.type || '',
-          }));
-        resolve(pois);
-      } else if (status === 'no_data') {
-        resolve([]);
-      } else {
-        reject(new Error(result.info || '获取提示失败'));
+      if (!AMap || !AMap.AutoComplete) {
+        console.error('AMap.AutoComplete 未加载');
+        reject(new Error('高德地图插件未加载完成，请重试'));
+        return;
       }
-    });
+
+      const autoOptions = {
+        city: city || '全国',
+      };
+
+      const autoComplete = new AMap.AutoComplete(autoOptions);
+
+      autoComplete.search(keyword, (status: string, result: any) => {
+        console.log('AutoComplete result:', { status, result });
+
+        // 处理错误状态
+        if (status === 'error') {
+          // 尝试多种方式获取错误信息
+          const errorInfo = result?.info || result?.result || result?.message || '未知错误';
+          console.error('AutoComplete 错误:', errorInfo);
+          console.error('AutoComplete 完整错误对象:', result);
+          
+          // INVALID_USER_SCODE 错误提示（安全密钥错误）
+          const errorStr = String(errorInfo);
+          if (errorStr === 'INVALID_USER_SCODE' || errorStr.includes('INVALID_USER_SCODE')) {
+            console.error('❌ 高德地图安全密钥（Security JS Code）配置错误！');
+            console.error('请检查：');
+            console.error('1. 登录高德控制台：https://console.amap.com/');
+            console.error('2. 进入你的应用 → 找到「安全密钥」设置');
+            console.error('3. 确认安全密钥与 API Key 匹配（同一个应用下）');
+            console.error('4. 检查环境变量 NEXT_PUBLIC_AMAP_SECURITY_JS_CODE 是否正确');
+            console.error('5. 如果未配置安全密钥，可以暂时不设置该环境变量（但推荐配置）');
+            console.error('6. 如果已配置，请确保安全密钥格式正确（通常是 UUID 或随机字符串）');
+          }
+          // USERKEY_PLAT_NOMATCH 错误提示
+          else if (errorStr === 'USERKEY_PLAT_NOMATCH' || errorStr.includes('USERKEY_PLAT_NOMATCH')) {
+            console.error('❌ 高德地图 API Key 平台类型不匹配！');
+            console.error('请检查：');
+            console.error('1. 确保使用的是 Web 端（JS API）的 Key，不是移动端或其他平台的 Key');
+            console.error('2. 在高德控制台配置安全密钥（Security JS Code）');
+            console.error('3. 在高德控制台配置域名白名单（允许 localhost:3000 和你的生产域名）');
+            console.error('4. 如果已配置安全密钥，请确保环境变量 NEXT_PUBLIC_AMAP_SECURITY_JS_CODE 已设置');
+          }
+          // 其他错误
+          else {
+            console.error('❌ 高德地图搜索失败:', errorInfo);
+            console.error('请检查 API Key 和安全密钥配置是否正确');
+          }
+          
+          resolve([]);
+          return;
+        }
+
+        if (status === 'complete' && result.tips) {
+          const pois: POI[] = result.tips
+            .filter((tip: any) => tip.location && tip.id)
+            .map((tip: any) => ({
+              id: tip.id,
+              name: tip.name,
+              address: tip.address || '',
+              district: tip.district || '',
+              city: tip.city ? tip.city.name : '',
+              longitude: tip.location.lng,
+              latitude: tip.location.lat,
+              type: tip.type || '',
+            }));
+          resolve(pois);
+        } else if (status === 'no_data') {
+          resolve([]);
+        } else {
+          // 返回空数组而不是拒绝，让 UI 继续显示
+          console.warn('AutoComplete 搜索未返回有效结果:', { status, result });
+          resolve([]);
+        }
+      });
+    } catch (error) {
+      console.error('AutoComplete 搜索异常:', error);
+      resolve([]);
+    }
   });
 }
 
