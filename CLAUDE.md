@@ -32,6 +32,7 @@ npm run test:report   # Open test report
 # 5. supabase/migrations/005_create_avatars_bucket.sql
 # 6. supabase/migrations/006_create_test_users.sql
 # 7. supabase/migrations/007_add_location_columns.sql
+# 8. supabase/migrations/008_add_expenses_tables.sql
 
 # Test Users Setup
 npm run test:users:create   # Create test users in Supabase
@@ -91,6 +92,7 @@ Get AMap credentials from https://console.amap.com/dev/key/app
   - `/trips/[id]/logs` - Travel journal entries
   - `/trips/[id]/gallery` - Photo gallery
   - `/trips/[id]/map` - Map view of activities
+  - `/trips/[id]/expenses` - Expense tracking and settlement (protected)
   - `/trips/[id]/members` - Team member management
   - `/trips/[id]/activities/new` - Add new activity
   - `/trips/[id]/activities/[activityId]` - Edit activity
@@ -116,6 +118,8 @@ Core tables with RLS (Row Level Security):
 - `activities` - Scheduled activities with category enum, location coordinates
 - `travel_logs` - Daily journal entries (unique per trip+date)
 - `trip_images` - Image metadata (files in Supabase Storage)
+- `expenses` - Expense records with category, amount, payer
+- `expense_splits` - Expense split details per user (for settlement calculation)
 - `preset_locations` - Pre-populated Sichuan-Chongqing attractions/food (200+ locations in `src/lib/constants.ts`)
 
 **Important**: When querying trips, always join with `trip_members` to check user access, as RLS policies are based on membership.
@@ -128,6 +132,52 @@ Use these Tailwind classes for UI consistency:
 - `accent-500` (#D97706) - Highlights, warnings (蜀锦金)
 
 Activity category colors are defined in `ACTIVITY_CATEGORIES` constant in `src/lib/constants.ts`.
+
+Expense category colors:
+- `food` (餐饮) - orange
+- `transport` (交通) - blue
+- `accommodation` (住宿) - purple
+- `ticket` (门票) - pink
+- `shopping` (购物) - emerald
+- `other` (其他) - gray
+
+### Expense Module (费用管理)
+
+The expense module (`/trips/[id]/expenses`) provides group expense tracking and settlement.
+
+**Key Files**:
+- `src/lib/expenses.ts` - Expense CRUD service (create, update, delete, fetch)
+- `src/lib/settlement.ts` - Settlement calculation algorithm (debtor-creditor optimization)
+- `src/components/expenses/ExpenseDashboard.tsx` - Statistics panel (total, my spending, my advances)
+- `src/components/expenses/ExpenseList.tsx` - Expense list with filtering and sorting
+- `src/components/expenses/ExpenseFormModal.tsx` - Unified modal for add/edit
+- `src/components/expenses/SettlementReport.tsx` - Settlement report modal
+
+**Data Model**:
+- `Expense` - Main expense record (id, trip_id, title, amount, category, payer_id, expense_date, created_by, updated_by, created_at, updated_at)
+- `ExpenseSplit` - Per-user split amount (links expense to user)
+
+**Features**:
+- **Create Expense**: Add new expenses with category, amount, payer, and participants
+- **Edit Expense**: Modify expense details (creator and editors only)
+- **Delete Expense**: Remove expenses (creator or owner only)
+- **Filtering**: Filter by category, payer, and date range
+- **Sorting**: Toggle between newest-first and oldest-first
+- **Statistics**: View total trip expenses, personal spending, and personal advances
+- **Settlement**: Auto-calculate optimal settlement plan
+
+**Settlement Algorithm**:
+- Uses greedy approach to minimize number of transactions
+- Calculates each user's balance: (amount paid) - (amount consumed)
+- Matches debtors to creditors optimally
+
+**Expense Categories**:
+- `food` (餐饮) - orange
+- `transport` (交通) - blue
+- `accommodation` (住宿) - purple
+- `ticket` (门票) - pink
+- `shopping` (购物) - emerald
+- `other` (其他) - gray
 
 ### Date Handling
 

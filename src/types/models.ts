@@ -3,7 +3,9 @@ export interface Profile {
   id: string;
   email?: string;
   username?: string;
+  full_name?: string;
   avatar_url?: string;
+
   created_at: string;
 }
 
@@ -32,6 +34,7 @@ export interface TripMember {
   role: MemberRole;
   joined_at: string;
   profile?: Profile;
+  profiles?: Profile;
 }
 
 // 活动类型
@@ -98,4 +101,30 @@ export interface PresetLocation {
 export interface TripWithMembers extends Trip {
   members?: TripMember[];
   member_count?: number;
+}
+
+// 费用分类
+export type ExpenseCategory = 'food' | 'transport' | 'accommodation' | 'ticket' | 'shopping' | 'other';
+
+// 费用
+export interface Expense {
+  id: string;
+  trip_id: string;
+  title: string;
+  amount: number;
+  category: ExpenseCategory;
+  payer_id: string; // 垫付款人 ID
+  expense_date: string; // YYYY-MM-DD
+  created_by: string;
+  updated_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+// 费用分摊
+export interface ExpenseSplit {
+  id: string;
+  expense_id: string;
+  user_id: string; // 分摊人 ID
+  amount: number; // 分摊金额
 }

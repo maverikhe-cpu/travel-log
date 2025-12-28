@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { MapPin, ArrowLeft, Users, Calendar, Navigation } from 'lucide-react';
+import { MapPin, ArrowLeft, Users, Calendar, Navigation, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getDaysRange } from '@/lib/utils';
@@ -143,7 +143,7 @@ export default async function TripDetailPage({
         </div>
 
         {/* 快捷入口 */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <Link href={`/trips/${id}/calendar`} className="group">
             <div className="glass-card rounded-2xl p-6 hover:shadow-float hover:-translate-y-1 transition-all h-full">
               <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
@@ -161,6 +161,16 @@ export default async function TripDetailPage({
               </div>
               <h3 className="font-serif font-bold text-lg text-ink-900 mb-2">地图视图</h3>
               <p className="text-sm text-ink-500 leading-relaxed">在地图上查看所有活动地点，一目了然</p>
+            </div>
+          </Link>
+
+          <Link href={`/trips/${id}/expenses`} className="group">
+            <div className="glass-card rounded-2xl p-6 hover:shadow-float hover:-translate-y-1 transition-all h-full">
+              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                <Wallet className="w-7 h-7 text-emerald-500" strokeWidth={1.5} />
+              </div>
+              <h3 className="font-serif font-bold text-lg text-ink-900 mb-2">费用账本</h3>
+              <p className="text-sm text-ink-500 leading-relaxed">记录每一笔花销，自动计算分摊结余</p>
             </div>
           </Link>
 
