@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MapPin, Loader2, Calendar } from 'lucide-react';
 import { createMap, addMarker, fitView, type POI } from '@/lib/amap';
 
@@ -23,6 +24,7 @@ interface TripMapProps {
   startDate: string;
   endDate: string;
   height?: string;
+  tripId?: string;  // 行程 ID，用于导航
   onActivityClick?: (activity: ActivityWithLocation) => void;
   className?: string;
 }
@@ -58,9 +60,11 @@ export default function TripMap({
   startDate,
   endDate,
   height = '400px',
+  tripId,
   onActivityClick,
   className = '',
 }: TripMapProps) {
+  const router = useRouter();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -254,7 +258,13 @@ export default function TripMap({
                     {dayActivities.map((activity) => (
                       <button
                         key={activity.id}
-                        onClick={() => onActivityClick?.(activity)}
+                        onClick={() => {
+                          if (onActivityClick) {
+                            onActivityClick(activity);
+                          } else if (tripId) {
+                            router.push(`/trips/${tripId}/activities/${activity.id}`);
+                          }
+                        }}
                         className="w-full text-left text-sm text-gray-600 hover:text-primary-600 truncate py-1 px-2 rounded hover:bg-gray-50 transition-colors"
                       >
                         {activity.title}

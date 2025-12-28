@@ -94,11 +94,8 @@ export default async function MapPage({
           activities={activitiesWithLocation}
           startDate={trip.start_date}
           endDate={trip.end_date}
+          tripId={id}
           height="calc(100vh - 200px)"
-          onActivityClick={(activity) => {
-            // 跳转到活动详情
-            redirect(`/trips/${id}/activities/${activity.id}`);
-          }}
         />
 
         {/* 提示信息 */}
