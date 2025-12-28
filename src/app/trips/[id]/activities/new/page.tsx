@@ -131,12 +131,19 @@ export default function NewActivityPage() {
     if (preset.category) {
       setCategory(preset.category);
     }
-    // 清空地理位置数据（预置地点没有坐标）
-    setLongitude(null);
-    setLatitude(null);
-    setPoiId(null);
+    // 如果预置地点有坐标，使用预置坐标
+    if (preset.longitude && preset.latitude) {
+      setLongitude(preset.longitude);
+      setLatitude(preset.latitude);
+      setPoiId(preset.id);
+      setLocationCity(preset.city || '');
+    } else {
+      setLongitude(null);
+      setLatitude(null);
+      setPoiId(null);
+      setLocationCity('');
+    }
     setLocationAddress('');
-    setLocationCity('');
     setLocationDistrict('');
     setShowPresetDropdown(false);
   };

@@ -90,6 +90,8 @@ export interface PresetLocation {
   city?: string;
   category?: ActivityCategory;
   description?: string;
+  longitude?: number;
+  latitude?: number;
 }
 
 // 带成员信息的行程

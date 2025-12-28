@@ -100,9 +100,19 @@ export default function TripMap({
       mapInstanceRef.current = null;
     }
 
+    // 设置超时，防止一直加载
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('地图加载超时');
+        setError('地图加载超时，请刷新重试');
+        setLoading(false);
+      }
+    }, 15000); // 15秒超时
+
     // 创建新地图
     createMap(mapRef.current)
       .then((map) => {
+        clearTimeout(timeoutId);
         mapInstanceRef.current = map;
 
         // 如果有活动，添加标记
@@ -115,65 +125,73 @@ export default function TripMap({
             const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
 
             dayActivities.forEach((activity) => {
-              const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
-                title: activity.title,
-                color: color.split('-')[1], // 提取颜色代码
-              });
-
-              // 添加点击事件
-              if (onActivityClick) {
-                marker.on('click', () => {
-                  onActivityClick(activity);
+              try {
+                const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
+                  title: activity.title,
+                  color: color, // 直接使用完整颜色值
                 });
-              }
 
-              // 创建信息窗口
-              const infoWindow = new (window as any).AMap.InfoWindow({
-                content: `
-                  <div style="padding: 8px; min-width: 150px;">
-                    <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
-                    <div style="font-size: 12px; color: #666;">
-                      <span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 4px; margin-right: 4px;">
-                        ${formatDate(activity.day_date)}
-                      </span>
-                      ${activity.start_time || ''} ${activity.end_time ? '- ' + activity.end_time : ''}
+                // 创建信息窗口
+                const infoWindow = new (window as any).AMap.InfoWindow({
+                  content: `
+                    <div style="padding: 8px; min-width: 150px;">
+                      <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
+                      <div style="font-size: 12px; color: #666;">
+                        <span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 4px; margin-right: 4px;">
+                          ${formatDate(activity.day_date)}
+                        </span>
+                        ${activity.start_time || ''} ${activity.end_time ? '- ' + activity.end_time : ''}
+                      </div>
+                      ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
                     </div>
-                    ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
-                  </div>
-                `,
-                offset: new (window as any).AMap.Pixel(0, -32),
-              });
+                  `,
+                  offset: new (window as any).AMap.Pixel(0, -32),
+                });
 
-              marker.on('click', () => {
-                infoWindow.open(map, marker.getPosition());
-              });
+                marker.on('click', () => {
+                  infoWindow.open(map, marker.getPosition());
+                  if (onActivityClick) {
+                    onActivityClick(activity);
+                  }
+                });
 
-              newMarkers.push(marker);
+                newMarkers.push(marker);
+              } catch (markerErr) {
+                console.error('添加标记失败:', activity.title, markerErr);
+              }
             });
           });
 
           markersRef.current = newMarkers;
 
           // 适配视野
-          fitView(map, newMarkers);
+          if (newMarkers.length > 0) {
+            fitView(map, newMarkers);
+          }
         }
 
         setLoading(false);
       })
       .catch((err) => {
+        clearTimeout(timeoutId);
         console.error('地图加载失败:', err);
-        setError('地图加载失败，请刷新重试');
+        setError(`地图加载失败: ${err.message || '未知错误'}`);
         setLoading(false);
       });
 
     return () => {
+      clearTimeout(timeoutId);
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.destroy();
+        try {
+          mapInstanceRef.current.destroy();
+        } catch (e) {
+          // 忽略清理错误
+        }
         mapInstanceRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activitiesWithLocation.length]);
+  }, [activitiesWithLocation.length, tripId]);
 
   // 空状态
   if (activitiesWithLocation.length === 0) {

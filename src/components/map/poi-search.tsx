@@ -103,20 +103,27 @@ export default function POISearch({
         });
 
         setSuggestions(filtered);
-        setShowSuggestions(true);
+        setShowSuggestions(filtered.length > 0);
       } else {
         // 如果自动补全没有结果，使用完整搜索
-        const searchResult = await searchPOI(query, city, 10);
-        const filtered = searchResult.pois.filter(poi => {
-          if (excludedCategories.length === 0) return true;
-          return !excludedCategories.some(cat => poi.type.includes(cat));
-        });
+        try {
+          const searchResult = await searchPOI(query, city, 10);
+          const filtered = searchResult.pois.filter(poi => {
+            if (excludedCategories.length === 0) return true;
+            return !excludedCategories.some(cat => poi.type.includes(cat));
+          });
 
-        setSuggestions(filtered);
-        setShowSuggestions(filtered.length > 0);
+          setSuggestions(filtered);
+          setShowSuggestions(filtered.length > 0);
+        } catch (fallbackError) {
+          console.error('POI 完整搜索也失败:', fallbackError);
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
       }
     } catch (error) {
       console.error('POI 搜索失败:', error);
+      // 显示错误提示给用户
       setSuggestions([]);
       setShowSuggestions(false);
     } finally {
