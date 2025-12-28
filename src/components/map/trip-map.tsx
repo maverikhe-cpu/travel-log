@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Loader2, Calendar } from 'lucide-react';
+import { MapPin, Loader2, Calendar, X, Filter } from 'lucide-react';
 import { createMap, addMarker, fitView, type POI } from '@/lib/amap';
 
 // 活动数据结构
@@ -55,6 +55,12 @@ function formatDate(dateStr: string): string {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function formatFullDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${weekdays[date.getDay()]}`;
+}
+
 export default function TripMap({
   activities,
   startDate,
@@ -70,6 +76,7 @@ export default function TripMap({
   const markersRef = useRef<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
 
   // 获取有位置信息的活动
   const activitiesWithLocation = activities.filter(
@@ -86,6 +93,27 @@ export default function TripMap({
   }, {} as Record<string, ActivityWithLocation[]>);
 
   const sortedDates = Object.keys(activitiesByDate).sort();
+
+  // 根据筛选条件过滤活动
+  const filteredActivities = selectedDateFilter
+    ? activitiesWithLocation.filter(a => a.day_date === selectedDateFilter)
+    : activitiesWithLocation;
+
+  // 根据筛选的活动重新分组
+  const filteredActivitiesByDate = filteredActivities.reduce((acc, activity) => {
+    if (!acc[activity.day_date]) {
+      acc[activity.day_date] = [];
+    }
+    acc[activity.day_date].push(activity);
+    return acc;
+  }, {} as Record<string, ActivityWithLocation[]>);
+
+  const filteredSortedDates = Object.keys(filteredActivitiesByDate).sort();
+
+  // 清除日期筛选
+  const clearDateFilter = () => {
+    setSelectedDateFilter(null);
+  };
 
   // 初始化地图
   useEffect(() => {
@@ -146,12 +174,12 @@ export default function TripMap({
           mapInstanceRef.current = map;
 
           // 如果有活动，添加标记
-          if (activitiesWithLocation.length > 0) {
+          if (filteredActivities.length > 0) {
             // 添加标记
             const newMarkers: any[] = [];
 
-            sortedDates.forEach((dateStr) => {
-              const dayActivities = activitiesByDate[dateStr];
+            filteredSortedDates.forEach((dateStr) => {
+              const dayActivities = filteredActivitiesByDate[dateStr];
               const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
 
               dayActivities.forEach((activity) => {
@@ -225,7 +253,7 @@ export default function TripMap({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activitiesWithLocation.length, tripId]);
+  }, [activitiesWithLocation.length, tripId, selectedDateFilter]);
 
   // 空状态
   if (activitiesWithLocation.length === 0) {
@@ -281,51 +309,111 @@ export default function TripMap({
       {/* 侧边栏 - 活动列表 */}
       <div className="w-full md:w-64 overflow-y-auto" style={{ maxHeight: height }}>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            按日期分组
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              按日期分组
+            </h3>
+            {selectedDateFilter && (
+              <button
+                onClick={clearDateFilter}
+                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                清除筛选
+              </button>
+            )}
+          </div>
 
+          {/* 日期筛选器 */}
+          {sortedDates.length > 1 && (
+            <div className="mb-4 pb-3 border-b border-gray-100">
+              <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                <Filter className="w-3 h-3" />
+                筛选日期
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={clearDateFilter}
+                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                    !selectedDateFilter
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  全部
+                </button>
+                {sortedDates.map((dateStr) => (
+                  <button
+                    key={dateStr}
+                    onClick={() => setSelectedDateFilter(dateStr)}
+                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                      selectedDateFilter === dateStr
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {formatDate(dateStr)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 活动列表 */}
           <div className="space-y-3">
-            {sortedDates.map((dateStr) => {
-              const dayActivities = activitiesByDate[dateStr];
-              const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
+            {filteredSortedDates.length === 0 ? (
+              <div className="text-center text-gray-500 py-4">
+                该日期暂无活动
+              </div>
+            ) : (
+              filteredSortedDates.map((dateStr) => {
+                const dayActivities = filteredActivitiesByDate[dateStr];
+                const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
 
-              return (
-                <div key={dateStr} className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span>{formatDate(dateStr)}</span>
-                  </div>
+                return (
+                  <div key={dateStr} className="space-y-2">
+                    <div
+                      className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer hover:text-primary-600"
+                      onClick={() => setSelectedDateFilter(dateStr)}
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span>{formatFullDate(dateStr)}</span>
+                      <span className="text-xs text-gray-400">({dayActivities.length})</span>
+                    </div>
 
-                  <div className="space-y-1 ml-5">
-                    {dayActivities.map((activity) => (
-                      <button
-                        key={activity.id}
-                        onClick={() => {
-                          if (onActivityClick) {
-                            onActivityClick(activity);
-                          } else if (tripId) {
-                            router.push(`/trips/${tripId}/activities/${activity.id}`);
-                          }
-                        }}
-                        className="w-full text-left text-sm text-gray-600 hover:text-primary-600 truncate py-1 px-2 rounded hover:bg-gray-50 transition-colors"
-                      >
-                        {activity.title}
-                      </button>
-                    ))}
+                    <div className="space-y-1 ml-5">
+                      {dayActivities.map((activity) => (
+                        <button
+                          key={activity.id}
+                          onClick={() => {
+                            if (onActivityClick) {
+                              onActivityClick(activity);
+                            } else if (tripId) {
+                              router.push(`/trips/${tripId}/activities/${activity.id}`);
+                            }
+                          }}
+                          className="w-full text-left text-sm text-gray-600 hover:text-primary-600 truncate py-1 px-2 rounded hover:bg-gray-50 transition-colors"
+                        >
+                          {activity.title}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-xs text-gray-500">
-              共 {activitiesWithLocation.length} 个地点
+              {selectedDateFilter
+                ? `${formatFullDate(selectedDateFilter)}: ${filteredActivities.length} 个地点`
+                : `共 ${activitiesWithLocation.length} 个地点`
+              }
             </p>
           </div>
         </div>
