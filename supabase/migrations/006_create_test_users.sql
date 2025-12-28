@@ -1,0 +1,25 @@
+-- ============================================
+-- 创建测试用户（仅用于开发/测试环境）
+-- ============================================
+-- 注意：生产环境请删除此文件
+
+-- 由于 Supabase Auth 用户不直接在 SQL 层面创建，
+-- 这里提供创建测试用户的说明：
+--
+-- 方法1: 使用 Supabase Dashboard
+-- 1. 访问 https://supabase.com/dashboard
+-- 2. 选择项目 → Authentication → Users
+-- 3. 点击 "Add user" → "Create new user"
+-- 4. 填写邮箱和密码，勾选 "Auto Confirm User"
+--
+-- 方法2: 使用 Supabase CLI
+-- supabase auth sign-up --email test1@example.com --password Test123456
+--
+-- 方法3: 运行测试时自动注册
+-- 测试脚本会使用未注册的邮箱自动注册
+
+-- 测试账号列表：
+-- 邮箱                    密码         角色
+-- test1@example.com    Test123456   普通用户
+-- test2@example.com    Test123456   普通用户
+-- creator@example.com  Test123456   创建者
