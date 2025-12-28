@@ -24,17 +24,28 @@ export default async function DashboardPage() {
     .single();
 
   // 获取用户参与的行程
-  const { data: trips } = await supabase
-    .from('trips')
-    .select(`
-      *,
-      trip_members!inner(
-        role,
-        user_id
-      )
-    `)
-    .eq('trip_members.user_id', user.id)
-    .order('created_at', { ascending: false });
+  // 先查询用户参与的行程ID列表
+  const { data: userTrips } = await supabase
+    .from('trip_members')
+    .select('trip_id')
+    .eq('user_id', user.id);
+
+  const tripIds = userTrips?.map(t => t.trip_id) || [];
+
+  // 然后查询这些行程及其所有成员
+  const { data: trips } = tripIds.length > 0
+    ? await supabase
+        .from('trips')
+        .select(`
+          *,
+          trip_members(
+            role,
+            user_id
+          )
+        `)
+        .in('id', tripIds)
+        .order('created_at', { ascending: false })
+    : { data: null };
 
   return (
     <div className="min-h-screen bg-background text-ink-800">
