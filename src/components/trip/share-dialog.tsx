@@ -94,13 +94,13 @@ export default function ShareDialog({ tripId, shareCode, tripName, creatorName, 
         <div className="p-6 border-t border-gray-100 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors touch-target"
+            className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-full font-medium transition-colors touch-target"
           >
             关闭
           </button>
           <button
             onClick={handleCopy}
-            className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 touch-target"
+            className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-full font-medium transition-colors flex items-center justify-center gap-2 touch-target"
           >
             {copied ? (
               <>

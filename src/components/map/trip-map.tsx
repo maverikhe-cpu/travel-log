@@ -1,0 +1,278 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { MapPin, Loader2, Calendar } from 'lucide-react';
+import { createMap, addMarker, fitView, type POI } from '@/lib/amap';
+
+// 活动数据结构
+interface ActivityWithLocation {
+  id: string;
+  title: string;
+  description?: string;
+  day_date: string;
+  longitude?: number | null;
+  latitude?: number | null;
+  location?: string;
+  category?: string;
+  start_time?: string;
+  end_time?: string;
+}
+
+interface TripMapProps {
+  activities: ActivityWithLocation[];
+  startDate: string;
+  endDate: string;
+  height?: string;
+  onActivityClick?: (activity: ActivityWithLocation) => void;
+  className?: string;
+}
+
+// 日期颜色映射（按日期分配不同颜色）
+const DATE_COLORS = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+];
+
+function getDateColor(dateStr: string, index: number): string {
+  // 使用日期字符串作为哈希来分配颜色
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = dateStr.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return DATE_COLORS[Math.abs(hash) % DATE_COLORS.length];
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+export default function TripMap({
+  activities,
+  startDate,
+  endDate,
+  height = '400px',
+  onActivityClick,
+  className = '',
+}: TripMapProps) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 获取有位置信息的活动
+  const activitiesWithLocation = activities.filter(
+    (a) => a.longitude && a.latitude
+  );
+
+  // 按日期分组
+  const activitiesByDate = activitiesWithLocation.reduce((acc, activity) => {
+    if (!acc[activity.day_date]) {
+      acc[activity.day_date] = [];
+    }
+    acc[activity.day_date].push(activity);
+    return acc;
+  }, {} as Record<string, ActivityWithLocation[]>);
+
+  const sortedDates = Object.keys(activitiesByDate).sort();
+
+  // 初始化地图
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    setLoading(true);
+    setError(null);
+
+    // 清理之前的地图实例
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.destroy();
+      mapInstanceRef.current = null;
+    }
+
+    // 创建新地图
+    createMap(mapRef.current)
+      .then((map) => {
+        mapInstanceRef.current = map;
+
+        // 如果有活动，添加标记
+        if (activitiesWithLocation.length > 0) {
+          // 添加标记
+          const newMarkers: any[] = [];
+
+          sortedDates.forEach((dateStr) => {
+            const dayActivities = activitiesByDate[dateStr];
+            const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
+
+            dayActivities.forEach((activity) => {
+              const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
+                title: activity.title,
+                color: color.split('-')[1], // 提取颜色代码
+              });
+
+              // 添加点击事件
+              if (onActivityClick) {
+                marker.on('click', () => {
+                  onActivityClick(activity);
+                });
+              }
+
+              // 创建信息窗口
+              const infoWindow = new (window as any).AMap.InfoWindow({
+                content: `
+                  <div style="padding: 8px; min-width: 150px;">
+                    <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
+                    <div style="font-size: 12px; color: #666;">
+                      <span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 4px; margin-right: 4px;">
+                        ${formatDate(activity.day_date)}
+                      </span>
+                      ${activity.start_time || ''} ${activity.end_time ? '- ' + activity.end_time : ''}
+                    </div>
+                    ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
+                  </div>
+                `,
+                offset: new (window as any).AMap.Pixel(0, -32),
+              });
+
+              marker.on('click', () => {
+                infoWindow.open(map, marker.getPosition());
+              });
+
+              newMarkers.push(marker);
+            });
+          });
+
+          markersRef.current = newMarkers;
+
+          // 适配视野
+          fitView(map, newMarkers);
+        }
+
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error('地图加载失败:', err);
+        setError('地图加载失败，请刷新重试');
+        setLoading(false);
+      });
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activitiesWithLocation.length]);
+
+  // 空状态
+  if (activitiesWithLocation.length === 0) {
+    return (
+      <div
+        className={`bg-gray-100 rounded-xl flex items-center justify-center ${className}`}
+        style={{ height }}
+      >
+        <div className="text-center text-gray-500">
+          <MapPin className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p>暂无地理位置信息</p>
+          <p className="text-sm">请在活动详情中添加地点</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 加载状态
+  if (loading) {
+    return (
+      <div
+        className={`bg-gray-100 rounded-xl flex items-center justify-center ${className}`}
+        style={{ height }}
+      >
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary-500 animate-spin" />
+          <p className="text-gray-500">加载地图中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <div
+        className={`bg-gray-100 rounded-xl flex items-center justify-center ${className}`}
+        style={{ height }}
+      >
+        <div className="text-center text-red-500">
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex flex-col md:flex-row gap-4 ${className}`}>
+      {/* 地图区域 */}
+      <div className="flex-1">
+        <div
+          ref={mapRef}
+          className="w-full rounded-xl overflow-hidden shadow-sm border border-gray-200"
+          style={{ height }}
+        />
+      </div>
+
+      {/* 侧边栏 - 活动列表 */}
+      <div className="w-full md:w-64 overflow-y-auto" style={{ maxHeight: height }}>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            按日期分组
+          </h3>
+
+          <div className="space-y-3">
+            {sortedDates.map((dateStr) => {
+              const dayActivities = activitiesByDate[dateStr];
+              const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
+
+              return (
+                <div key={dateStr} className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <span
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span>{formatDate(dateStr)}</span>
+                  </div>
+
+                  <div className="space-y-1 ml-5">
+                    {dayActivities.map((activity) => (
+                      <button
+                        key={activity.id}
+                        onClick={() => onActivityClick?.(activity)}
+                        className="w-full text-left text-sm text-gray-600 hover:text-primary-600 truncate py-1 px-2 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        {activity.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs text-gray-500">
+              共 {activitiesWithLocation.length} 个地点
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,26 +1,31 @@
 import Link from "next/link";
-import { MapPin, Users, Calendar, Image as ImageIcon } from "lucide-react";
+import { MapPin, Users, Calendar, Image as ImageIcon, ArrowRight } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50">
+    <div className="min-h-screen bg-background text-ink-800 transition-colors duration-300">
+      {/* Texture Overlay (Optional, using CSS pattern instead of image for now) */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] mix-blend-multiply bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+
       {/* Header */}
-      <header className="border-b border-red-100 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-8 h-8 text-primary-500" />
-            <h1 className="text-2xl font-bold text-gray-900">川渝行迹</h1>
+      <header className="fixed top-0 w-full z-50 transition-all duration-300 glass-nav">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white shadow-float transform rotate-3">
+              <span className="font-serif text-xl italic font-bold">W</span>
+            </div>
+            <h1 className="text-2xl font-serif font-bold text-ink-900 tracking-tight">漫行记</h1>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-4 items-center">
             <Link
               href="/login"
-              className="px-4 py-2 text-gray-700 hover:text-primary-600 transition-colors"
+              className="px-6 py-2.5 text-sm font-medium text-ink-600 hover:text-primary-600 transition-colors"
             >
               登录
             </Link>
             <Link
               href="/register"
-              className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors touch-target"
+              className="px-6 py-2.5 bg-ink-900 text-white text-sm font-medium rounded-full shadow-lg hover:shadow-xl hover:bg-black transition-all transform hover:-translate-y-0.5 active:translate-y-0"
             >
               注册
             </Link>
@@ -29,68 +34,87 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            团队旅行，协同记录
+      <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto relative">
+        <div className="max-w-4xl mx-auto text-center mb-24 relative z-10">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary-50 text-primary-600 text-xs font-bold tracking-wide uppercase mb-6 border border-primary-100/50">
+            Team Travel Reimagined
+          </span>
+          <h2 className="text-5xl md:text-7xl font-serif font-bold text-ink-900 mb-8 leading-[1.1]">
+            漫行山水间，
+            <br />
+            <span className="text-gradient align-middle">记录时光里</span>
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            为川渝地区团体旅行提供简单、直观的行程规划与记录工具
+          <p className="text-lg md:text-xl text-ink-600 mb-10 max-w-2xl mx-auto font-sans leading-relaxed">
+            告别繁琐的攻略文档。用一种更优雅的方式，规划你们的每一次旅程。
+            <br className="hidden md:block" />
+            让每一次相聚，都成为值得珍藏的独家记忆。
           </p>
-          <Link
-            href="/register"
-            className="inline-block px-8 py-3 bg-primary-500 text-white text-lg rounded-lg hover:bg-primary-600 transition-colors touch-target"
-          >
-            开始使用
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link
+              href="/register"
+              className="group px-8 py-4 bg-primary-500 text-white text-lg font-medium rounded-full shadow-float hover:bg-primary-600 transition-all flex items-center gap-2"
+            >
+              开始规划行程
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href="#features"
+              className="px-8 py-4 bg-white text-ink-600 text-lg font-medium rounded-full border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              了解更多
+            </Link>
+          </div>
         </div>
 
-        {/* Features */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Features Grid */}
+        <div id="features" className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
           <FeatureCard
             icon={Calendar}
-            title="行程规划"
-            description="创建每日行程安排，设置活动时间和地点"
+            title="灵感拼图"
+            description="像拼图一样拖拽规划行程，可视化的日程管理，让时间安排变得井井有条又不失弹性。"
           />
           <FeatureCard
             icon={Users}
-            title="团队协作"
-            description="邀请好友加入，一起规划和完善行程"
+            title="亲密协作"
+            description="生成专属邀请码，邀请挚友共同编辑。每个人都是旅行的设计师，实时同步彼此的想法。"
           />
           <FeatureCard
             icon={ImageIcon}
-            title="照片记录"
-            description="上传旅行照片，按日期整理分享"
+            title="胶片记忆"
+            description="不仅仅是照片库。按时间线自动整理的旅行画册，支持原图保存，留住每一个光影瞬间。"
           />
           <FeatureCard
             icon={MapPin}
-            title="川渝指南"
-            description="预置热门景点和美食推荐"
+            title="地道风物"
+            description="避开游客陷阱。精选本地人推荐的小众景点与地道美食，体验最纯粹的当地生活。"
           />
         </div>
 
-        {/* CTA Section */}
-        <div className="mt-16 text-center bg-white rounded-2xl p-8 shadow-lg border border-red-100">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
-            准备好开始你的川渝之旅了吗？
+        {/* Emotional CTA Section */}
+        <div className="mt-32 relative rounded-3xl overflow-hidden glass-card p-12 text-center border-none ring-1 ring-black/5">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary-300 via-primary-500 to-primary-300"></div>
+          <h3 className="text-3xl font-serif font-bold text-ink-900 mb-6 relative z-10">
+            准备好出发了吗？
           </h3>
-          <p className="text-gray-600 mb-6">
-            注册账号，创建行程，邀请好友一起记录美好时光
+          <p className="text-ink-600 mb-8 max-w-lg mx-auto relative z-10">
+            从第一杯茶颜悦色，到最后一张合影。WanderLog 陪你记录全程。
           </p>
           <Link
             href="/register"
-            className="inline-block px-8 py-3 bg-primary-500 text-white text-lg rounded-lg hover:bg-primary-600 transition-colors touch-target"
+            className="inline-block px-10 py-3.5 bg-ink-900 text-white text-lg font-medium rounded-full shadow-xl hover:bg-black transition-all relative z-10"
           >
-            免费注册
+            免费开启旅程
           </Link>
+
+          {/* Decorative circles */}
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-secondary-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-primary-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-red-100 bg-white/80 mt-16">
-        <div className="max-w-6xl mx-auto px-4 py-6 text-center text-gray-600">
-          <p>© 2025 川渝行迹 - 让旅行记录更简单</p>
-        </div>
+      <footer className="w-full py-8 text-center text-ink-400 text-sm bg-white/50 border-t border-gray-100 sticky top-[100vh]">
+        <p>© 2025 WanderLog. Crafted with ❤️ for travelers.</p>
       </footer>
     </div>
   );
@@ -106,12 +130,12 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mb-4">
-        <Icon className="w-6 h-6 text-primary-500" />
+    <div className="glass-card rounded-2xl p-8 hover:-translate-y-1 hover:shadow-float transition-all duration-300 group">
+      <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+        <Icon className="w-7 h-7 text-primary-500" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-gray-600">{description}</p>
+      <h3 className="text-xl font-serif font-bold text-ink-900 mb-3">{title}</h3>
+      <p className="text-ink-600 leading-relaxed text-sm">{description}</p>
     </div>
   );
 }

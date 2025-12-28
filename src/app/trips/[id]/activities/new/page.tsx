@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, Clock, Save, ChevronDown, Search } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Save, ChevronDown, Search, Navigation } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { ACTIVITY_CATEGORIES, PRESET_LOCATIONS, CITIES, getLocationsByCity } from '@/lib/constants';
+import { ACTIVITY_CATEGORIES, PRESET_LOCATIONS, CITIES } from '@/lib/constants';
+import POISearch, { type POI } from '@/components/map/poi-search';
 import type { ActivityCategory } from '@/types/models';
 
 // 常用时间预设
@@ -35,6 +36,15 @@ export default function NewActivityPage() {
   const [date, setDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // 地理位置相关状态
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [poiId, setPoiId] = useState<string | null>(null);
+  const [locationAddress, setLocationAddress] = useState('');
+  const [locationCity, setLocationCity] = useState('');
+  const [locationDistrict, setLocationDistrict] = useState('');
+  const [useMapSearch, setUseMapSearch] = useState(false);
 
   // 预置地点筛选
   const [selectedCity, setSelectedCity] = useState<string>('all');
@@ -80,6 +90,13 @@ export default function NewActivityPage() {
         category,
         start_time: startTime || null,
         end_time: endTime || null,
+        // 地理位置字段
+        longitude,
+        latitude,
+        poi_id: poiId,
+        address: locationAddress || null,
+        city: locationCity || null,
+        district: locationDistrict || null,
       });
 
       if (error) {
@@ -94,13 +111,49 @@ export default function NewActivityPage() {
     }
   };
 
+  // 处理 POI 选择
+  const handlePOISelect = (poi: POI) => {
+    setTitle(poi.name);
+    setLocation(poi.address || poi.name);
+    setLongitude(poi.longitude);
+    setLatitude(poi.latitude);
+    setPoiId(poi.id);
+    setLocationAddress(poi.address);
+    setLocationCity(poi.city);
+    setLocationDistrict(poi.district);
+    setUseMapSearch(false);
+  };
+
+  // 处理预置地点选择
   const handleSelectPreset = (preset: typeof PRESET_LOCATIONS[0]) => {
     setTitle(preset.name);
     setLocation(preset.city ? `${preset.city} - ${preset.name}` : preset.name);
     if (preset.category) {
       setCategory(preset.category);
     }
+    // 清空地理位置数据（预置地点没有坐标）
+    setLongitude(null);
+    setLatitude(null);
+    setPoiId(null);
+    setLocationAddress('');
+    setLocationCity('');
+    setLocationDistrict('');
     setShowPresetDropdown(false);
+  };
+
+  // 切换到地图搜索
+  const handleToggleMapSearch = () => {
+    setUseMapSearch(!useMapSearch);
+  };
+
+  // 清除地理位置
+  const handleClearLocation = () => {
+    setLongitude(null);
+    setLatitude(null);
+    setPoiId(null);
+    setLocationAddress('');
+    setLocationCity('');
+    setLocationDistrict('');
   };
 
   // 获取筛选后的预置地点
@@ -175,97 +228,154 @@ export default function NewActivityPage() {
               快速选择川渝热门地点
             </label>
 
-            {/* 城市筛选 */}
-            <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
+            {/* 搜索模式切换 */}
+            <div className="flex gap-2 mb-3">
               <button
                 type="button"
-                onClick={() => setSelectedCity('all')}
-                className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                  selectedCity === 'all'
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                onClick={() => { setUseMapSearch(false); setLongitude(null); setLatitude(null); }}
+                className={`flex-1 px-4 py-2 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                  !useMapSearch
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                 }`}
               >
-                全部
+                <Search className="w-4 h-4" />
+                预置地点
               </button>
-              {CITIES.map((city) => (
+              <button
+                type="button"
+                onClick={() => { setUseMapSearch(true); }}
+                className={`flex-1 px-4 py-2 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                  useMapSearch
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <Navigation className="w-4 h-4" />
+                地图搜索
+              </button>
+            </div>
+
+            {/* 城市筛选 */}
+            {!useMapSearch && (
+              <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
                 <button
-                  key={city}
                   type="button"
-                  onClick={() => setSelectedCity(city)}
+                  onClick={() => setSelectedCity('all')}
                   className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
-                    selectedCity === city
+                    selectedCity === 'all'
                       ? 'bg-primary-500 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {city}
+                  全部
                 </button>
-              ))}
-            </div>
+                {CITIES.map((city) => (
+                  <button
+                    key={city}
+                    type="button"
+                    onClick={() => setSelectedCity(city)}
+                    className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                      selectedCity === city
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {city}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* 地点搜索和下拉 */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowPresetDropdown(!showPresetDropdown)}
-                className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors bg-white"
-              >
-                <span className="text-gray-500 flex items-center gap-2">
-                  <Search className="w-4 h-4" />
-                  {selectedCity === 'all' ? '搜索地点...' : `搜索${selectedCity}地点...`}
-                </span>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              </button>
+            {/* 地点搜索和下拉 / 地图搜索 */}
+            {!useMapSearch ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                  className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors bg-white"
+                >
+                  <span className="text-gray-500 flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    {selectedCity === 'all' ? '搜索地点...' : `搜索${selectedCity}地点...`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </button>
 
-              {showPresetDropdown && (
-                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
-                  {/* 搜索框 */}
-                  <div className="p-3 border-b border-gray-100">
-                    <input
-                      type="text"
-                      value={searchPreset}
-                      onChange={(e) => setSearchPreset(e.target.value)}
-                      placeholder="搜索景点名称..."
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                      autoFocus
-                    />
-                  </div>
+                {showPresetDropdown && (
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                    {/* 搜索框 */}
+                    <div className="p-3 border-b border-gray-100">
+                      <input
+                        type="text"
+                        value={searchPreset}
+                        onChange={(e) => setSearchPreset(e.target.value)}
+                        placeholder="搜索景点名称..."
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                        autoFocus
+                      />
+                    </div>
 
-                  {/* 地点列表 */}
-                  <div className="overflow-y-auto max-h-60">
-                    {filteredPresets.length > 0 ? (
-                      filteredPresets.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => handleSelectPreset(preset)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-gray-900">{preset.name}</div>
-                              <div className="text-sm text-gray-500 flex items-center gap-2">
-                                {preset.city && <span>{preset.city}</span>}
-                                {preset.description && <span>·</span>}
-                                {preset.description && <span className="truncate max-w-xs">{preset.description}</span>}
+                    {/* 地点列表 */}
+                    <div className="overflow-y-auto max-h-60">
+                      {filteredPresets.length > 0 ? (
+                        filteredPresets.map((preset) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">{preset.name}</div>
+                                <div className="text-sm text-gray-500 flex items-center gap-2">
+                                  {preset.city && <span>{preset.city}</span>}
+                                  {preset.description && <span>·</span>}
+                                  {preset.description && <span className="truncate max-w-xs">{preset.description}</span>}
+                                </div>
                               </div>
+                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                {preset.category === 'attraction' ? '景点' : '美食'}
+                              </span>
                             </div>
-                            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                              {preset.category === 'attraction' ? '景点' : '美食'}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-8 text-center text-gray-500">
-                        没有找到匹配的地点
-                      </div>
-                    )}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-8 text-center text-gray-500">
+                          没有找到匹配的地点
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <POISearch
+                  city={selectedCity !== 'all' ? selectedCity : undefined}
+                  onSelect={handlePOISelect}
+                  placeholder="搜索地点，如：宽窄巷子、春熙路..."
+                  defaultValue={location}
+                />
+                {longitude && latitude && (
+                  <div className="mt-2 flex items-center justify-between text-sm text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {locationCity && <span>{locationCity}</span>}
+                      {locationDistrict && <span> · {locationDistrict}</span>}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearLocation}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      清除
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 活动类型 */}
