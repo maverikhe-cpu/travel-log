@@ -3,11 +3,8 @@
  * 提供地图加载、POI 搜索、地理编码等功能
  */
 
-import AMapLoader from '@amap/amap-jsapi-loader';
-
 // 高德地图配置
 const AMAP_KEY = process.env.NEXT_PUBLIC_AMAP_KEY || '';
-const AMAP_SECURITY_JS_CODE = process.env.NEXT_PUBLIC_AMAP_SECURITY_JS_CODE || '';
 const AMAP_VERSION = '2.0';
 
 // 高德地图插件列表
@@ -61,6 +58,9 @@ export async function loadAMap(): Promise<void> {
     console.error('高德地图 API Key 未配置');
     throw new Error('高德地图 API Key 未配置');
   }
+
+  // 动态导入 AMapLoader，避免服务端渲染时出现 "window is not defined" 错误
+  const { default: AMapLoader } = await import('@amap/amap-jsapi-loader');
 
   loadPromise = AMapLoader.load({
     key: AMAP_KEY,
