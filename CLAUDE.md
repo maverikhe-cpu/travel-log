@@ -16,18 +16,51 @@ npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
 
+# E2E Testing (Playwright)
+npm test              # Run all Playwright tests
+npm run test:headed   # Run tests with visible browser
+npm run test:ui       # Run tests with Playwright UI
+npm run test:debug    # Run tests in debug mode
+npm run test:report   # Open test report
+
 # Database Setup
 # After creating a Supabase project, run the migration files in order:
 # 1. supabase/migrations/001_initial_schema.sql
 # 2. supabase/migrations/002_storage_bucket.sql
+# 3. supabase/migrations/003_fix_rls_policies.sql
+# 4. supabase/migrations/004_add_log_privacy.sql
+# 5. supabase/migrations/005_create_avatars_bucket.sql
+# 6. supabase/migrations/006_create_test_users.sql
+# 7. supabase/migrations/007_add_location_columns.sql
+
+# Test Users Setup
+npm run test:users:create   # Create test users in Supabase
 ```
+
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and configure:
+
+```bash
+# Supabase (required)
+NEXT_PUBLIC_SUPABASE_URL=your-project-url.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# AMap 高德地图 (required for map features)
+NEXT_PUBLIC_AMAP_KEY=your-amap-web-api-key
+NEXT_PUBLIC_AMAP_SECURITY_JS_CODE=your-amap-security-js-code
+```
+
+Get AMap credentials from https://console.amap.com/dev/key/app
 
 ## Architecture
 
 ### Tech Stack
 - **Frontend**: Next.js 16 (App Router), TypeScript 5, Tailwind CSS 3
-- **State**: Zustand (client state)
+- **State**: Zustand (client state) - `src/store/`
 - **Backend**: Supabase (auth, PostgreSQL, Storage)
+- **Maps**: AMap (高德地图) via `@amap/amap-jsapi-loader`
+- **Rich Text**: Tiptap editor
 - **Icons**: lucide-react
 - **Deployment**: Vercel
 
@@ -43,17 +76,36 @@ npm run lint         # Run ESLint
 - `/login` and `/register` redirect authenticated users to `/dashboard`
 - Signout: POST form to `/auth/signout`
 
+**State Management (Zustand)**:
+- `src/store/authStore.ts` - User authentication state
+- `src/store/tripStore.ts` - Current trip data (activities, logs, images, members)
+
 **Route Structure**:
 - `/` - Landing page (public)
 - `/login`, `/register` - Auth pages (public)
 - `/dashboard` - User's trip list (protected)
+- `/profile` - User profile settings (protected)
 - `/trips/new` - Create new trip (protected)
 - `/trips/[id]` - Trip detail hub with links to:
   - `/trips/[id]/calendar` - Daily schedule view
   - `/trips/[id]/logs` - Travel journal entries
   - `/trips/[id]/gallery` - Photo gallery
+  - `/trips/[id]/map` - Map view of activities
+  - `/trips/[id]/members` - Team member management
+  - `/trips/[id]/activities/new` - Add new activity
+  - `/trips/[id]/activities/[activityId]` - Edit activity
+- `/join/[code]` - Join trip via share code (public)
 
 **Mobile Navigation**: Protected trip pages include a fixed bottom nav bar (hidden on desktop) with tabs for Calendar, Logs, and Gallery.
+
+### AMap 高德地图 Integration
+
+The app uses AMap (高德地图) for Chinese location services. Key files:
+- `src/lib/amap.ts` - Main API wrapper with loadAMap, searchPOI, createMap, etc.
+- `src/components/map/trip-map.tsx` - Map display component
+- `src/components/map/poi-search.tsx` - Location search component
+
+**Important**: AMap requires dynamic import to avoid SSR errors. The security code must be set via `window._AMapSecurityConfig` before loading the API.
 
 ### Database Schema (Supabase)
 
@@ -61,10 +113,10 @@ Core tables with RLS (Row Level Security):
 - `profiles` - User profiles (linked to auth.users via trigger)
 - `trips` - Trip records with auto-generated `share_code`
 - `trip_members` - Junction table with role: `owner` | `editor` | `viewer`
-- `activities` - Scheduled activities with category enum
+- `activities` - Scheduled activities with category enum, location coordinates
 - `travel_logs` - Daily journal entries (unique per trip+date)
 - `trip_images` - Image metadata (files in Supabase Storage)
-- `preset_locations` - Pre-populated Sichuan-Chongqing attractions/food
+- `preset_locations` - Pre-populated Sichuan-Chongqing attractions/food (200+ locations in `src/lib/constants.ts`)
 
 **Important**: When querying trips, always join with `trip_members` to check user access, as RLS policies are based on membership.
 
@@ -81,10 +133,22 @@ Activity category colors are defined in `ACTIVITY_CATEGORIES` constant in `src/l
 
 - Dates stored as `DATE` type in PostgreSQL (YYYY-MM-DD format)
 - Use `getDaysRange()` from `src/lib/utils.ts` to generate date array for trip duration
-- Current trip date defaults to `2025-03-15` to `2025-03-21` (7 days)
+- Date formats in `DATE_FORMATS` constant (src/lib/constants.ts)
 
 ### Mobile-First Constraints
 
 - Touch targets must be min `44×44px` (use `.touch-target` utility class)
 - Bottom nav on mobile, responsive layouts with Tailwind breakpoints (`md:`, `lg:`)
 - Forms should have large inputs suitable for touch interaction
+
+### Testing
+
+**E2E Tests** (Playwright):
+- Test files in `e2e/` directory
+- Helper functions in `e2e/helpers.ts` (login, register, createTrip, etc.)
+- Test users defined in `TEST_USERS` constant
+- Configure `AUTO_REGISTER=true` to auto-register test users
+
+**Lighthouse CI**:
+- `npm run lhci` - Run Lighthouse performance audits
+- Configuration in `lighthouserc.json`

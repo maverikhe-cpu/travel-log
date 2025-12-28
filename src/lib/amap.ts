@@ -134,13 +134,19 @@ export async function createMap(
     if (map.getStatus() === 'complete') {
       console.log('地图已加载完成');
       resolve(map);
+      return;
     }
 
     // 超时保护
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       console.warn('地图加载超时，但将继续使用');
       resolve(map);
     }, 5000);
+    
+    // 清理超时（如果地图提前加载完成）
+    map.on('complete', () => {
+      clearTimeout(timeoutId);
+    });
   });
 }
 

@@ -89,98 +89,132 @@ export default function TripMap({
 
   // 初始化地图
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    setLoading(true);
-    setError(null);
-
-    // 清理之前的地图实例
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.destroy();
-      mapInstanceRef.current = null;
+    // 如果 mapRef 还没有准备好，等待 DOM 渲染完成
+    if (!mapRef.current) {
+      // 使用 requestAnimationFrame 等待下一个渲染周期
+      // 最多等待 10 次（约 160ms），避免无限等待
+      let retryCount = 0;
+      const maxRetries = 10;
+      const checkRef = () => {
+        if (mapRef.current) {
+          initializeMap();
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          requestAnimationFrame(checkRef);
+        } else {
+          setError('地图容器未准备好，请刷新重试');
+          setLoading(false);
+        }
+      };
+      requestAnimationFrame(checkRef);
+      return;
     }
+    
+    // 定义初始化函数
+    function initializeMap() {
+      if (!mapRef.current) {
+        return;
+      }
 
-    // 设置超时，防止一直加载
-    const timeoutId = setTimeout(() => {
-      if (loading) {
+      setLoading(true);
+      setError(null);
+
+      // 清理之前的地图实例
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.destroy();
+        mapInstanceRef.current = null;
+      }
+
+      // 设置超时，防止一直加载
+      let timeoutTriggered = false;
+      const timeoutId = setTimeout(() => {
+        timeoutTriggered = true;
         console.error('地图加载超时');
         setError('地图加载超时，请刷新重试');
         setLoading(false);
-      }
-    }, 15000); // 15秒超时
+      }, 15000); // 15秒超时
 
-    // 创建新地图
-    createMap(mapRef.current)
-      .then((map) => {
-        clearTimeout(timeoutId);
-        mapInstanceRef.current = map;
-
-        // 如果有活动，添加标记
-        if (activitiesWithLocation.length > 0) {
-          // 添加标记
-          const newMarkers: any[] = [];
-
-          sortedDates.forEach((dateStr) => {
-            const dayActivities = activitiesByDate[dateStr];
-            const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
-
-            dayActivities.forEach((activity) => {
-              try {
-                const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
-                  title: activity.title,
-                  color: color, // 直接使用完整颜色值
-                });
-
-                // 创建信息窗口
-                const infoWindow = new (window as any).AMap.InfoWindow({
-                  content: `
-                    <div style="padding: 8px; min-width: 150px;">
-                      <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
-                      <div style="font-size: 12px; color: #666;">
-                        <span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 4px; margin-right: 4px;">
-                          ${formatDate(activity.day_date)}
-                        </span>
-                        ${activity.start_time || ''} ${activity.end_time ? '- ' + activity.end_time : ''}
-                      </div>
-                      ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
-                    </div>
-                  `,
-                  offset: new (window as any).AMap.Pixel(0, -32),
-                });
-
-                marker.on('click', () => {
-                  infoWindow.open(map, marker.getPosition());
-                  if (onActivityClick) {
-                    onActivityClick(activity);
-                  }
-                });
-
-                newMarkers.push(marker);
-              } catch (markerErr) {
-                console.error('添加标记失败:', activity.title, markerErr);
-              }
-            });
-          });
-
-          markersRef.current = newMarkers;
-
-          // 适配视野
-          if (newMarkers.length > 0) {
-            fitView(map, newMarkers);
+      // 创建新地图
+      createMap(mapRef.current)
+        .then((map) => {
+          if (timeoutTriggered) {
+            console.warn('地图加载完成，但已触发超时');
+            return;
           }
-        }
+          
+          clearTimeout(timeoutId);
+          mapInstanceRef.current = map;
 
-        setLoading(false);
-      })
-      .catch((err) => {
-        clearTimeout(timeoutId);
-        console.error('地图加载失败:', err);
-        setError(`地图加载失败: ${err.message || '未知错误'}`);
-        setLoading(false);
-      });
+          // 如果有活动，添加标记
+          if (activitiesWithLocation.length > 0) {
+            // 添加标记
+            const newMarkers: any[] = [];
 
+            sortedDates.forEach((dateStr) => {
+              const dayActivities = activitiesByDate[dateStr];
+              const color = getDateColor(dateStr, sortedDates.indexOf(dateStr));
+
+              dayActivities.forEach((activity) => {
+                try {
+                  const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
+                    title: activity.title,
+                    color: color, // 直接使用完整颜色值
+                  });
+
+                  // 创建信息窗口
+                  const infoWindow = new (window as any).AMap.InfoWindow({
+                    content: `
+                      <div style="padding: 8px; min-width: 150px;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
+                        <div style="font-size: 12px; color: #666;">
+                          <span style="display: inline-block; padding: 2px 6px; background: ${color}; color: white; border-radius: 4px; margin-right: 4px;">
+                            ${formatDate(activity.day_date)}
+                          </span>
+                          ${activity.start_time || ''} ${activity.end_time ? '- ' + activity.end_time : ''}
+                        </div>
+                        ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
+                      </div>
+                    `,
+                    offset: new (window as any).AMap.Pixel(0, -32),
+                  });
+
+                  marker.on('click', () => {
+                    infoWindow.open(map, marker.getPosition());
+                    if (onActivityClick) {
+                      onActivityClick(activity);
+                    }
+                  });
+
+                  newMarkers.push(marker);
+                } catch (markerErr) {
+                  console.error('添加标记失败:', activity.title, markerErr);
+                }
+              });
+            });
+
+            markersRef.current = newMarkers;
+
+            // 适配视野
+            if (newMarkers.length > 0) {
+              fitView(map, newMarkers);
+            }
+          }
+
+          setLoading(false);
+        })
+        .catch((err) => {
+          clearTimeout(timeoutId);
+          console.error('地图加载失败:', err);
+          setError(`地图加载失败: ${err.message || '未知错误'}`);
+          setLoading(false);
+        });
+    }
+
+    // 调用初始化函数
+    initializeMap();
+
+    // 清理函数
     return () => {
-      clearTimeout(timeoutId);
       if (mapInstanceRef.current) {
         try {
           mapInstanceRef.current.destroy();
@@ -209,21 +243,6 @@ export default function TripMap({
     );
   }
 
-  // 加载状态
-  if (loading) {
-    return (
-      <div
-        className={`bg-gray-100 rounded-xl flex items-center justify-center ${className}`}
-        style={{ height }}
-      >
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary-500 animate-spin" />
-          <p className="text-gray-500">加载地图中...</p>
-        </div>
-      </div>
-    );
-  }
-
   // 错误状态
   if (error) {
     return (
@@ -241,12 +260,22 @@ export default function TripMap({
   return (
     <div className={`flex flex-col md:flex-row gap-4 ${className}`}>
       {/* 地图区域 */}
-      <div className="flex-1">
+      <div className="flex-1 relative">
+        {/* 地图容器 - 必须始终渲染，即使 loading 也要渲染，这样 mapRef 才能被设置 */}
         <div
           ref={mapRef}
           className="w-full rounded-xl overflow-hidden shadow-sm border border-gray-200"
           style={{ height }}
         />
+        {/* 加载遮罩层 - 覆盖在地图容器上方 */}
+        {loading && (
+          <div className="absolute inset-0 bg-gray-100 rounded-xl flex items-center justify-center z-10">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 mx-auto mb-2 text-primary-500 animate-spin" />
+              <p className="text-gray-500">加载地图中...</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 侧边栏 - 活动列表 */}
