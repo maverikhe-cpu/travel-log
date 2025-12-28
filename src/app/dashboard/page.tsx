@@ -43,7 +43,10 @@ export default async function DashboardPage() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <MapPin className="w-8 h-8 text-primary-500" />
-            <span className="text-xl font-bold text-gray-900">川渝行迹</span>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-gray-900 leading-tight">漫行记</span>
+              <span className="text-xs text-gray-500 -mt-0.5">WanderLog</span>
+            </div>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/profile" className="flex items-center gap-2 hover:bg-gray-100 rounded-lg p-1 pr-3 transition-colors">

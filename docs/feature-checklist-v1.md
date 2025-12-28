@@ -1,8 +1,9 @@
-# 川渝行迹 v1.0 功能清单
+# 漫行记 WanderLog v1.0 功能清单
 
 ## 项目信息
 
-**项目名称**: 川渝行迹
+**项目名称**: 漫行记 WanderLog
+**Slogan**: 漫行山水间，记录时光里
 **版本**: 1.0
 **技术栈**: Next.js 16.1.1 + TypeScript + Tailwind CSS + Supabase
 **部署目标**: Vercel

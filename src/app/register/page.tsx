@@ -96,13 +96,16 @@ function RegisterForm() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-4">
             <MapPin className="w-10 h-10 text-primary-500" />
-            <span className="text-2xl font-bold text-gray-900">川渝行迹</span>
+            <div className="flex flex-col items-start">
+              <span className="text-2xl font-bold text-gray-900">漫行记</span>
+              <span className="text-xs text-gray-500 -mt-1">WanderLog</span>
+            </div>
           </Link>
           <h1 className="text-2xl font-semibold text-gray-900">
             {inviteCode ? '注册并加入行程' : '创建账号'}
           </h1>
           <p className="text-gray-600 mt-2">
-            {inviteCode ? '注册后自动加入邀请的行程' : '开始记录你的川渝之旅'}
+            {inviteCode ? '注册后自动加入邀请的行程' : '开始记录你的旅程'}
           </p>
         </div>
 

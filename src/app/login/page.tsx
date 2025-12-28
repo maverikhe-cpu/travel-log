@@ -59,13 +59,16 @@ function LoginForm() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-4">
             <MapPin className="w-10 h-10 text-primary-500" />
-            <span className="text-2xl font-bold text-gray-900">川渝行迹</span>
+            <div className="flex flex-col items-start">
+              <span className="text-2xl font-bold text-gray-900">漫行记</span>
+              <span className="text-xs text-gray-500 -mt-1">WanderLog</span>
+            </div>
           </Link>
           <h1 className="text-2xl font-semibold text-gray-900">
             {inviteCode ? '登录以加入行程' : '登录账号'}
           </h1>
           <p className="text-gray-600 mt-2">
-            {inviteCode ? '登录后自动加入邀请的行程' : '欢迎回来，继续你的旅行记录'}
+            {inviteCode ? '登录后自动加入邀请的行程' : '漫行山水间，记录时光里'}
           </p>
         </div>
 
