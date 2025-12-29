@@ -33,6 +33,7 @@ npm run test:report   # Open test report
 # 6. supabase/migrations/006_create_test_users.sql
 # 7. supabase/migrations/007_add_location_columns.sql
 # 8. supabase/migrations/008_add_expenses_tables.sql
+# 9. supabase/migrations/009_upgrade_travel_logs.sql
 
 # Test Users Setup
 npm run test:users:create   # Create test users in Supabase
@@ -236,6 +237,72 @@ The expense module (`/trips/[id]/expenses`) provides group expense tracking and 
 - `ticket` (门票) - pink
 - `shopping` (购物) - emerald
 - `other` (其他) - gray
+
+### Travel Logs Module (旅行记录)
+
+The travel logs module (`/trips/[id]/logs`) provides multi-entry daily journaling with image support.
+
+**Key Files**:
+- `src/components/logs/TravelLogForm.tsx` - Form for creating/editing logs with images
+- `src/components/logs/LogsClient.tsx` - Client component displaying multiple logs per day
+- `src/app/trips/[id]/logs/page.tsx` - Server component fetching all logs
+- `src/app/trips/[id]/logs/new/page.tsx` - New log creation page
+- `src/app/trips/[id]/logs/[logId]/edit/page.tsx` - Log editing page
+
+**Data Model**:
+- `travel_logs` table fields:
+  - `id` (UUID) - Primary key
+  - `trip_id` (UUID) - Foreign key to trips
+  - `day_date` (DATE) - Date of the log
+  - `title` (TEXT, optional) - Log title
+  - `content` (TEXT) - Rich text content (required)
+  - `images` (TEXT[]) - Array of image URLs (max 10)
+  - `is_private` (BOOLEAN) - Privacy flag (default: false)
+  - `created_by` (UUID) - Creator user ID
+  - `created_at` (TIMESTAMP) - Creation timestamp
+  - `updated_at` (TIMESTAMP) - Last update timestamp
+
+- `trip_images` relationship:
+  - `source` (TEXT) - 'gallery' or 'log' (indicates image source)
+  - `log_id` (UUID, nullable) - Links to travel_logs.id if source='log'
+
+**Features**:
+- **Multiple Entries**: Each member can create multiple logs per day (no unique constraint)
+- **Image Upload**: Upload up to 10 images per log (auto-compressed to max 2000px, 92% quality)
+- **Gallery Integration**: Images from logs automatically appear in trip photo gallery
+- **Rich Editing**: Edit log title, content, and manage images
+- **Image Sync**: Removing images in edit mode deletes from both travel_logs and trip_images tables
+- **Sorted Display**: Logs displayed by creation time (newest first)
+- **Date Navigation**: View logs by specific date
+
+**Image Upload Flow**:
+1. User selects images (max 10, 5MB each)
+2. Images compressed client-side using `compressImage()`
+3. For new logs: Create log record first to obtain `logId`
+4. Upload images to Supabase Storage at `{tripId}/logs/{date}/{filename}`
+5. Save to both:
+   - `travel_logs.images` array (for quick access)
+   - `trip_images` table with `source='log'` and `log_id` (for gallery display)
+
+**Edit Mode Image Deletion**:
+When removing images in edit mode:
+1. Compare `initialData.images` with current `images` state
+2. Query `trip_images` for removed URLs by `log_id`
+3. Delete from Storage
+4. Delete from `trip_images` table
+5. Update `travel_logs.images` array
+
+**RLS Policies**:
+- **Insert**: Any trip member can create logs
+- **Update**: Creator or owner/editor can update
+- **Delete**: Creator or owner can delete
+- **Select**: Trip members can view logs
+
+**Migration**: `009_upgrade_travel_logs.sql`
+- Removed `UNIQUE(trip_id, day_date)` constraint
+- Added `title`, `images`, `is_private` columns
+- Added `source`, `log_id` columns to `trip_images`
+- Updated RLS policies for multi-entry support
 
 ### Date Handling
 

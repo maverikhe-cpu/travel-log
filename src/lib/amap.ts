@@ -124,23 +124,61 @@ export async function createMap(
   });
 
   // 等待地图完全加载
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    // 验证地图实例
+    if (!map) {
+      reject(new Error('地图实例创建失败'));
+      return;
+    }
+
+    // 验证地图实例是否有必要的方法
+    if (typeof map.add !== 'function') {
+      console.warn('地图实例缺少 add 方法，但继续尝试加载');
+    }
+
+    let resolved = false;
+    const resolveOnce = (result: any) => {
+      if (!resolved) {
+        resolved = true;
+        // 再次验证地图实例
+        if (result && typeof result.add === 'function') {
+          console.log('地图加载完成，实例验证通过');
+          resolve(result);
+        } else {
+          console.error('地图实例验证失败', {
+            hasMap: !!result,
+            hasAddMethod: result ? typeof result.add === 'function' : false
+          });
+          reject(new Error('地图实例不完整'));
+        }
+      }
+    };
+
     map.on('complete', () => {
       console.log('地图加载完成');
-      resolve(map);
+      resolveOnce(map);
     });
 
     // 如果地图已经加载完成，直接返回
-    if (map.getStatus() === 'complete') {
-      console.log('地图已加载完成');
-      resolve(map);
-      return;
+    try {
+      if (map.getStatus && map.getStatus() === 'complete') {
+        console.log('地图已加载完成');
+        resolveOnce(map);
+        return;
+      }
+    } catch (e) {
+      console.warn('无法获取地图状态，等待 complete 事件');
     }
 
     // 超时保护
     const timeoutId = setTimeout(() => {
       console.warn('地图加载超时，但将继续使用');
-      resolve(map);
+      // 即使超时，也验证地图实例
+      if (map && typeof map.add === 'function') {
+        resolveOnce(map);
+      } else {
+        reject(new Error('地图加载超时且实例不完整'));
+      }
     }, 5000);
     
     // 清理超时（如果地图提前加载完成）
@@ -469,48 +507,136 @@ export function addMarker(
     color?: string;
   } = {}
 ): any {
+  // 首先验证 map 参数
+  if (!map) {
+    console.error('addMarker: map 参数为 undefined 或 null');
+    return null;
+  }
+
+  // 验证 map 的类型和结构
+  if (typeof map !== 'object') {
+    console.error('addMarker: map 不是对象', typeof map, map);
+    return null;
+  }
+
+  // 验证 map 是否有 add 方法（这是最关键的方法）
+  if (typeof map.add !== 'function') {
+    console.error('addMarker: map 对象没有 add 方法', {
+      mapType: typeof map,
+      mapKeys: map ? Object.keys(map) : [],
+      map: map
+    });
+    return null;
+  }
+
   const AMap = (window as any).AMap;
-
-  const markerOptions: any = {
-    position: new AMap.LngLat(position[0], position[1]),
-    title: options.title || '',
-  };
-
-  // 自定义图标
-  if (options.icon) {
-    markerOptions.icon = new AMap.Icon({
-      image: options.icon,
-      size: new AMap.Size(32, 32),
-      imageSize: new AMap.Size(32, 32),
-    });
+  if (!AMap) {
+    console.error('addMarker: AMap 对象未加载');
+    return null;
   }
 
-  // 使用内置彩色图标
-  if (options.color) {
-    const colorMap: Record<string, string> = {
-      red: '#ef4444',
-      blue: '#3b82f6',
-      green: '#22c55e',
-      yellow: '#eab308',
-      purple: '#a855f7',
+  if (!position || position.length !== 2 || typeof position[0] !== 'number' || typeof position[1] !== 'number') {
+    console.error('addMarker: 无效的位置参数', position);
+    return null;
+  }
+
+  // 验证 AMap 的必要类是否存在
+  if (!AMap.LngLat || !AMap.Marker) {
+    console.error('addMarker: AMap 类未完全加载', {
+      hasLngLat: !!AMap.LngLat,
+      hasMarker: !!AMap.Marker,
+      hasIcon: !!AMap.Icon,
+      hasSize: !!AMap.Size
+    });
+    return null;
+  }
+
+  try {
+    // 再次确认 map 和 add 方法存在（双重检查）
+    if (!map || typeof map.add !== 'function') {
+      console.error('addMarker: 在创建标记前验证失败', {
+        mapExists: !!map,
+        hasAddMethod: map ? typeof map.add === 'function' : false
+      });
+      return null;
+    }
+
+    // 创建位置对象
+    const lngLat = new AMap.LngLat(position[0], position[1]);
+    
+    const markerOptions: any = {
+      position: lngLat,
+      title: options.title || '',
     };
-    const color = colorMap[options.color] || options.color;
-    markerOptions.icon = new AMap.Icon({
-      image: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="12" fill="${color}" stroke="white" stroke-width="3"/>
-          <circle cx="16" cy="16" r="4" fill="white"/>
-        </svg>
-      `)}`,
-      size: new AMap.Size(32, 32),
-      imageSize: new AMap.Size(32, 32),
+
+    // 自定义图标
+    if (options.icon) {
+      if (!AMap.Icon || !AMap.Size) {
+        console.warn('addMarker: AMap.Icon 或 AMap.Size 未加载，跳过自定义图标');
+      } else {
+        markerOptions.icon = new AMap.Icon({
+          image: options.icon,
+          size: new AMap.Size(32, 32),
+          imageSize: new AMap.Size(32, 32),
+        });
+      }
+    }
+
+    // 使用内置彩色图标
+    if (options.color) {
+      if (!AMap.Icon || !AMap.Size) {
+        console.warn('addMarker: AMap.Icon 或 AMap.Size 未加载，跳过彩色图标');
+      } else {
+        const colorMap: Record<string, string> = {
+          red: '#ef4444',
+          blue: '#3b82f6',
+          green: '#22c55e',
+          yellow: '#eab308',
+          purple: '#a855f7',
+        };
+        const color = colorMap[options.color] || options.color;
+        markerOptions.icon = new AMap.Icon({
+          image: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="12" fill="${color}" stroke="white" stroke-width="3"/>
+              <circle cx="16" cy="16" r="4" fill="white"/>
+            </svg>
+          `)}`,
+          size: new AMap.Size(32, 32),
+          imageSize: new AMap.Size(32, 32),
+        });
+      }
+    }
+
+    // 创建标记
+    const marker = new AMap.Marker(markerOptions);
+    
+    // 在调用 add 之前再次验证
+    if (!map || typeof map.add !== 'function') {
+      console.error('addMarker: 在调用 add 前 map 变为无效');
+      return null;
+    }
+
+    map.add(marker);
+    return marker;
+  } catch (error: any) {
+    console.error('addMarker: 创建标记失败', {
+      error: error?.message || error?.toString() || error,
+      errorType: error?.constructor?.name,
+      errorStack: error?.stack,
+      mapType: typeof map,
+      hasMap: !!map,
+      hasAddMethod: map ? typeof map.add === 'function' : false,
+      hasAMap: !!AMap,
+      hasLngLat: !!AMap?.LngLat,
+      hasMarker: !!AMap?.Marker,
+      hasIcon: !!AMap?.Icon,
+      hasSize: !!AMap?.Size,
+      position,
+      options
     });
+    return null;
   }
-
-  const marker = new AMap.Marker(markerOptions);
-  map.add(marker);
-
-  return marker;
 }
 
 /**

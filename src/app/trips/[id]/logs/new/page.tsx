@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import LogsClient from '@/components/logs/LogsClient';
+import TravelLogForm from '@/components/logs/TravelLogForm';
 
-export default async function LogsPage({
+export default async function NewLogPage({
   params,
   searchParams,
 }: {
@@ -24,7 +24,7 @@ export default async function LogsPage({
   // 获取行程信息
   const { data: trip } = await supabase
     .from('trips')
-    .select('*')
+    .select('start_date')
     .eq('id', id)
     .single();
 
@@ -32,24 +32,7 @@ export default async function LogsPage({
     redirect('/dashboard');
   }
 
-  // 获取所有旅行记录
-  const { data: logs } = await supabase
-    .from('travel_logs')
-    .select('*, profiles(email, username, avatar_url)')
-    .eq('trip_id', id)
-    .order('created_at', { ascending: false });
-
-  // 默认选中开始日期
   const selectedDate = date || trip.start_date;
 
-  return (
-    <LogsClient
-      tripId={id}
-      tripName={trip.name}
-      startDate={trip.start_date}
-      endDate={trip.end_date}
-      initialDate={selectedDate}
-      initialLogs={logs || []}
-    />
-  );
+  return <TravelLogForm tripId={id} date={selectedDate} mode="create" />;
 }

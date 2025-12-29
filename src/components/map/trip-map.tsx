@@ -171,10 +171,39 @@ export default function TripMap({
           }
           
           clearTimeout(timeoutId);
+          
+          // 验证地图实例
+          if (!map) {
+            console.error('地图实例为 undefined');
+            setError('地图创建失败，请刷新重试');
+            setLoading(false);
+            return;
+          }
+
+          // 验证地图实例是否有必要的方法
+          if (typeof map.add !== 'function') {
+            console.error('地图实例缺少 add 方法', {
+              mapType: typeof map,
+              mapKeys: Object.keys(map || {}),
+            });
+            setError('地图实例不完整，请刷新重试');
+            setLoading(false);
+            return;
+          }
+
           mapInstanceRef.current = map;
 
           // 如果有活动，添加标记
           if (filteredActivities.length > 0) {
+            // 检查 AMap 对象是否已加载
+            const AMap = (window as any).AMap;
+            if (!AMap) {
+              console.error('AMap 对象未加载，无法添加标记');
+              setError('地图 API 未加载完成，请刷新重试');
+              setLoading(false);
+              return;
+            }
+
             // 添加标记
             const newMarkers: any[] = [];
 
@@ -184,13 +213,34 @@ export default function TripMap({
 
               dayActivities.forEach((activity) => {
                 try {
-                  const marker = addMarker(map, [activity.longitude!, activity.latitude!], {
+                  // 检查活动的经纬度是否存在
+                  if (!activity.longitude || !activity.latitude) {
+                    console.warn(`活动 "${activity.title}" 缺少位置信息，跳过标记`);
+                    return;
+                  }
+
+                  // 在调用前再次验证 map
+                  if (!map || typeof map.add !== 'function') {
+                    console.error('在添加标记时 map 无效', {
+                      hasMap: !!map,
+                      hasAddMethod: map ? typeof map.add === 'function' : false,
+                      activity: activity.title
+                    });
+                    return;
+                  }
+
+                  const marker = addMarker(map, [activity.longitude, activity.latitude], {
                     title: activity.title,
                     color: color, // 直接使用完整颜色值
                   });
 
+                  if (!marker) {
+                    console.warn(`活动 "${activity.title}" 标记创建失败`);
+                    return;
+                  }
+
                   // 创建信息窗口
-                  const infoWindow = new (window as any).AMap.InfoWindow({
+                  const infoWindow = new AMap.InfoWindow({
                     content: `
                       <div style="padding: 8px; min-width: 150px;">
                         <div style="font-weight: bold; margin-bottom: 4px;">${activity.title}</div>
@@ -203,7 +253,7 @@ export default function TripMap({
                         ${activity.location ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">📍 ${activity.location}</div>` : ''}
                       </div>
                     `,
-                    offset: new (window as any).AMap.Pixel(0, -32),
+                    offset: new AMap.Pixel(0, -32),
                   });
 
                   marker.on('click', () => {
