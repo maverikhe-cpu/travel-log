@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-川渝行迹 (Chuan-Yu Travel Log) is a collaborative trip planning and logging web application for group travel to the Sichuan-Chongqing region. Built with Next.js 16, TypeScript, Tailwind CSS, and Supabase.
+漫行记（WanderLog) is a collaborative trip planning and logging web application for group travel to the Sichuan-Chongqing region. Built with Next.js 16, TypeScript, Tailwind CSS, and Supabase.
 
 ## Commands
 
@@ -36,6 +36,10 @@ npm run test:report   # Open test report
 
 # Test Users Setup
 npm run test:users:create   # Create test users in Supabase
+
+# Development Tools
+npm run seed:activities    # Fill test trip with activity data
+node scripts/check-trips.js # Check database trips and activities
 ```
 
 ## Environment Variables
@@ -124,12 +128,37 @@ Core tables with RLS (Row Level Security):
 
 **Important**: When querying trips, always join with `trip_members` to check user access, as RLS policies are based on membership.
 
+### Trip Cover & Edit Features
+
+**Cover Image Upload**:
+- Trips support cover images stored in `trips.cover_image_url`
+- Cover images uploaded to `trip-images` bucket at `{tripId}/covers/` path
+- Two upload methods:
+  1. Local file upload with automatic compression (max 2000px, 92% quality)
+  2. Select from trip's photo gallery
+- Cover displayed prominently on trip detail page
+
+**Trip Editing**:
+- Only trip creator can edit trip information
+- Edit button (pencil icon) shown only to creator in header
+- Editable fields: name, description, start_date, end_date, cover_image_url
+- RLS policy: `created_by` or `role='owner'` can update trips
+- Key components:
+  - `src/components/trip/EditTripModal.tsx` - Modal for editing trip info
+  - `src/components/trip/PhotoSelectorModal.tsx` - Modal for selecting cover from gallery
+
+**Permission Check**:
+```typescript
+const isCreator = trip.created_by === userId;
+```
+
 ### Color System (川渝 Theme)
 
 Use these Tailwind classes for UI consistency:
-- `primary-500` (#DC2626) - Main actions, CTAs (辣椒红)
-- `secondary-500` (#059669) - Success states (竹青)
-- `accent-500` (#D97706) - Highlights, warnings (蜀锦金)
+- `primary-500` (#FA5252) - Main actions, CTAs (朱红)
+- `secondary-500` (#38A169) - Success states (竹青)
+- `ink-900` (#1A1B1E) - Primary text (水墨灰极浓)
+- `ink-600` (#868E96) - Secondary text (水墨灰次要)
 
 Activity category colors are defined in `ACTIVITY_CATEGORIES` constant in `src/lib/constants.ts`.
 
@@ -140,6 +169,35 @@ Expense category colors:
 - `ticket` (门票) - pink
 - `shopping` (购物) - emerald
 - `other` (其他) - gray
+
+### Gallery Module (照片库)
+
+The gallery module (`/trips/[id]/gallery`) provides photo management with filtering and lightbox viewing.
+
+**Key Files**:
+- `src/components/gallery/GalleryClient.tsx` - Main client component with state management
+- `src/components/gallery/GalleryStats.tsx` - Statistics panel (total photos, user breakdown)
+- `src/components/gallery/GalleryFilter.tsx` - User filter dropdown
+- `src/components/gallery/PhotoCard.tsx` - Individual photo card with delete option
+- `src/components/gallery/PhotoLightbox.tsx` - Full-screen lightbox with rotation/zoom
+
+**Features**:
+- **View Modes**: Toggle between "all dates" (expandable) and single date view
+- **User Filtering**: Filter photos by member (shows upload counts per user)
+- **Lightbox**: Full-screen viewer with keyboard shortcuts:
+  - Arrow keys: Navigate between photos
+  - R/E: Rotate clockwise/counter-clockwise
+  - Escape: Close lightbox
+  - Zoom in/out buttons, rotation controls, download
+- **Delete**: Photo owner can delete their photos (removes from storage and database)
+- **Date Grouping**: Photos grouped by `day_date` with expand/collapse
+- **Mobile Navigation**: Bottom nav bar with Calendar/Logs/Gallery tabs
+
+**Image Optimization**:
+- Uses `compressImage()` utility from `src/lib/utils.ts`
+- Client-side compression before upload (max 2000px, 92% quality)
+- Preserves PNG transparency, converts others to JPEG
+- Priority loading for first 8 images in first date group (LCP optimization)
 
 ### Expense Module (费用管理)
 
@@ -185,11 +243,21 @@ The expense module (`/trips/[id]/expenses`) provides group expense tracking and 
 - Use `getDaysRange()` from `src/lib/utils.ts` to generate date array for trip duration
 - Date formats in `DATE_FORMATS` constant (src/lib/constants.ts)
 
+### Utility Functions (`src/lib/utils.ts`)
+
+- `cn(...inputs)` - Merge Tailwind classes with clsx and tailwind-merge
+- `generateShareCode()` - Generate 6-character alphanumeric share code (excludes ambiguous chars)
+- `formatDate(date, format)` - Format dates as 'short' (M/D), 'long' (M月D日), or 'weekday' (周X)
+- `getDaysRange(startDate, endDate)` - Generate array of Date objects between two dates
+- `compressImage(file, maxWidth, quality)` - Client-side image compression for uploads
+- `formatFileSize(bytes)` - Human-readable file size (B, KB, MB)
+
 ### Mobile-First Constraints
 
-- Touch targets must be min `44×44px` (use `.touch-target` utility class)
+- Touch targets must be min `44×44px` - use `className="p-2"` or larger padding on buttons
 - Bottom nav on mobile, responsive layouts with Tailwind breakpoints (`md:`, `lg:`)
 - Forms should have large inputs suitable for touch interaction
+- Mobile navigation bar is rendered on pages with `/trips/[id]` prefix (Calendar, Logs, Gallery tabs)
 
 ### Testing
 
@@ -202,3 +270,8 @@ The expense module (`/trips/[id]/expenses`) provides group expense tracking and 
 **Lighthouse CI**:
 - `npm run lhci` - Run Lighthouse performance audits
 - Configuration in `lighthouserc.json`
+
+**Running Single Tests**:
+- `npx playwright test e2e/gallery/gallery.spec.ts` - Run specific test file
+- `npx playwright test e2e/gallery/gallery.spec.ts -g "查看照片库"` - Run tests matching grep pattern
+- `npx playwright test --project=chromium` - Run tests in specific browser

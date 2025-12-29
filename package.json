@@ -15,7 +15,8 @@
     "test:performance": "playwright test e2e/performance",
     "lhci": "lhci autorun",
     "lhci:upload": "lhci upload",
-    "test:users:create": "tsx scripts/setup-test-users.ts"
+    "test:users:create": "tsx scripts/setup-test-users.ts",
+    "seed:activities": "node scripts/seed-activities.js"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
