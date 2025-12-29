@@ -246,9 +246,10 @@ export const ACTIVITY_CATEGORIES: Record<
 
 // 成员角色配置
 export const MEMBER_ROLES = {
-  owner: { label: '创建者', description: '所有权限' },
-  editor: { label: '编辑者', description: '可添加/编辑活动' },
-  viewer: { label: '查看者', description: '仅查看' },
+  owner: { label: '漫游长', description: '所有权限', color: 'bg-purple-100 text-purple-700', icon: 'Crown' },
+  editor: { label: '漫行客', description: '可添加/编辑活动', color: 'bg-blue-100 text-blue-700', icon: 'Edit' },
+  viewer: { label: '查看者', description: '仅查看', color: 'bg-gray-100 text-gray-700', icon: 'Eye' },
+  companion: { label: '云伴游', description: '可互动，不可见费用', color: 'bg-sky-100 text-sky-700', icon: 'Cloud' },
 } as const;
 
 // 图片上传限制

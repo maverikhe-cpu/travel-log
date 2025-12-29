@@ -242,6 +242,24 @@ export default function ExpenseFormModal({
                             </span>
                         </div>
 
+                        {/* 快捷选择 */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setInvolvedUsers([currentUserId])}
+                                className="text-xs px-3 py-1.5 rounded-full bg-primary-100 text-primary-700 hover:bg-primary-200 font-medium transition-colors"
+                            >
+                                仅自己
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setInvolvedUsers(members.map(m => m.user_id))}
+                                className="text-xs px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 font-medium transition-colors"
+                            >
+                                全选
+                            </button>
+                        </div>
+
                         <div className="flex flex-wrap gap-2">
                             {members.map(member => {
                                 const isSelected = involvedUsers.includes(member.user_id);

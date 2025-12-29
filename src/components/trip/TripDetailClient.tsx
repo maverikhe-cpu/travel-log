@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, ArrowLeft, Users, Calendar, Navigation, Wallet, Edit } from 'lucide-react';
+import { MapPin, ArrowLeft, Users, Calendar, Navigation, Wallet, Edit, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getDaysRange } from '@/lib/utils';
 import ShareButton from '@/components/trip/share-button';
 import EditTripModal from '@/components/trip/EditTripModal';
 import { createClient } from '@/lib/supabase/client';
+import type { MemberRole } from '@/types/models';
 
 interface TripDetailClientProps {
   trip: any;
@@ -21,9 +22,23 @@ export default function TripDetailClient({ trip, userId }: TripDetailClientProps
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [localTrip, setLocalTrip] = useState(trip);
+  const [userRole, setUserRole] = useState<MemberRole | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
 
-  // 检查是否为创建者
+  // 获取用户在行程中的角色
+  useEffect(() => {
+    const member = localTrip.trip_members?.find((m: any) => m.user_id === userId);
+    if (member) {
+      setUserRole(member.role);
+      setIsBlocked(member.is_blocked || false);
+    }
+  }, [localTrip, userId]);
+
+  // 检查是否为漫游长
   const isCreator = localTrip.created_by === userId;
+
+  // 云伴游标识
+  const isCompanion = userRole === 'companion';
 
   // 获取成员信息
   const creatorMember = localTrip.trip_members?.find((m: any) => m.user_id === localTrip.created_by);
@@ -69,14 +84,22 @@ export default function TripDetailClient({ trip, userId }: TripDetailClientProps
               </button>
             </Link>
             <div>
-              <h1 className="text-lg md:text-xl font-serif font-bold text-ink-900">{localTrip.name}</h1>
+              <h1 className="text-lg md:text-xl font-serif font-bold text-ink-900 flex items-center gap-2">
+                {localTrip.name}
+                {isCompanion && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full text-xs font-medium">
+                    <Cloud className="w-3 h-3" />
+                    云伴游
+                  </span>
+                )}
+              </h1>
               <p className="text-xs text-ink-500 hidden sm:block font-sans">
                 {localTrip.start_date} ~ {localTrip.end_date}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* 编辑按钮 - 仅创建者可见 */}
+            {/* 编辑按钮 - 仅漫游长可见 */}
             {isCreator && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -186,15 +209,17 @@ export default function TripDetailClient({ trip, userId }: TripDetailClientProps
             </div>
           </Link>
 
-          <Link href={`/trips/${localTrip.id}/expenses`} className="group">
-            <div className="glass-card rounded-2xl p-6 hover:shadow-float hover:-translate-y-1 transition-all h-full">
-              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
-                <Wallet className="w-7 h-7 text-emerald-500" strokeWidth={1.5} />
+          {!isCompanion && (
+            <Link href={`/trips/${localTrip.id}/expenses`} className="group">
+              <div className="glass-card rounded-2xl p-6 hover:shadow-float hover:-translate-y-1 transition-all h-full">
+                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform shadow-sm">
+                  <Wallet className="w-7 h-7 text-emerald-500" strokeWidth={1.5} />
+                </div>
+                <h3 className="font-serif font-bold text-lg text-ink-900 mb-2">费用账本</h3>
+                <p className="text-sm text-ink-500 leading-relaxed">记录每一笔花销，自动计算分摊结余</p>
               </div>
-              <h3 className="font-serif font-bold text-lg text-ink-900 mb-2">费用账本</h3>
-              <p className="text-sm text-ink-500 leading-relaxed">记录每一笔花销，自动计算分摊结余</p>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           <Link href={`/trips/${localTrip.id}/logs`} className="group">
             <div className="glass-card rounded-2xl p-6 hover:shadow-float hover:-translate-y-1 transition-all h-full">

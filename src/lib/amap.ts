@@ -611,14 +611,35 @@ export function addMarker(
     // 创建标记
     const marker = new AMap.Marker(markerOptions);
     
-    // 在调用 add 之前再次验证
-    if (!map || typeof map.add !== 'function') {
-      console.error('addMarker: 在调用 add 前 map 变为无效');
+    if (!map) {
+      console.error('addMarker: 在调用 add 前 map 为 null/undefined');
+      return null;
+    }
+    
+    // 检查 map.add 是否存在且是函数
+    const mapAdd = map.add;
+    if (!mapAdd || typeof mapAdd !== 'function') {
+      console.error('addMarker: map.add 不存在或不是函数', {
+        mapType: typeof map,
+        mapKeys: Object.keys(map || {}),
+        hasAdd: 'add' in map,
+        addType: typeof mapAdd,
+        mapConstructor: map?.constructor?.name,
+      });
       return null;
     }
 
-    map.add(marker);
-    return marker;
+    // 使用保存的引用调用
+    try {
+      mapAdd.call(map, marker);
+      return marker;
+    } catch (addError: any) {
+      console.error('addMarker: 调用 map.add 时出错', {
+        error: addError?.message,
+        errorStack: addError?.stack,
+      });
+      return null;
+    }
   } catch (error: any) {
     console.error('addMarker: 创建标记失败', {
       error: error?.message || error?.toString() || error,

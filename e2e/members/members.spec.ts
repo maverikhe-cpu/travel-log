@@ -27,11 +27,11 @@ test.describe('成员管理模块', () => {
       await expect(page.locator('button:has-text("邀请")').or(page.locator('text=分享'))).toBeVisible();
     });
 
-    test('显示创建者标记', async ({ page }) => {
+    test('显示漫游长标记', async ({ page }) => {
       await page.goto(`/trips/${tripId}/members`);
 
-      // 验证创建者标签显示
-      await expect(page.locator('text=创建者').or(page.locator('[data-testid="owner-badge"]'))).toBeVisible();
+      // 验证漫游长标签显示
+      await expect(page.locator('text=漫游长').or(page.locator('[data-testid="owner-badge"]'))).toBeVisible();
     });
 
     test('显示自己标记', async ({ page }) => {
@@ -106,12 +106,12 @@ test.describe('成员管理模块', () => {
     test('删除按钮存在', async ({ page }) => {
       await page.goto(`/trips/${tripId}/members`);
 
-      // 查找删除按钮（非自己、非创建者）
+      // 查找删除按钮（非自己、非漫游长）
       const deleteButtons = page.locator('button').filter({ hasText: /删除|移除/ });
 
       // 如果有其他成员，应该显示删除按钮
       const count = await deleteButtons.count();
-      // 创建者不能删除自己，所以可能没有按钮
+      // 漫游长不能删除自己，所以可能没有按钮
     });
 
     test('移除确认对话框', async ({ page }) => {

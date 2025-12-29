@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTripStore } from '@/store/tripStore';
 import { Expense, ExpenseSplit, TripWithMembers } from '@/types/models';
@@ -30,6 +30,11 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
     const [editingExpenseSplits, setEditingExpenseSplits] = useState<string[]>([]);
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // 过滤掉云伴游成员（不参与费用分摊）
+    const eligibleMembers = useMemo(() => {
+        return (trip.members || []).filter(m => m.role !== 'companion');
+    }, [trip.members]);
 
     // Initialize store
     useEffect(() => {
@@ -207,7 +212,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
 
                 <ExpenseList
                     expenses={expenses}
-                    members={trip.members || []}
+                    members={eligibleMembers}
                     currentUserId={currentUserId}
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
@@ -218,7 +223,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={handleCreateExpense}
-                members={trip.members || []}
+                members={eligibleMembers}
                 currentUserId={currentUserId}
             />
 
@@ -230,7 +235,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
                     setEditingExpenseSplits([]);
                 }}
                 onSave={handleEditExpense}
-                members={trip.members || []}
+                members={eligibleMembers}
                 currentUserId={currentUserId}
                 editExpense={editingExpense}
                 existingSplits={editingExpenseSplits}
@@ -240,7 +245,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
                 <SettlementReport
                     expenses={expenses}
                     splits={expenseSplits}
-                    members={trip.members || []}
+                    members={eligibleMembers}
                     onClose={() => setIsReportOpen(false)}
                     currentUserId={currentUserId}
                 />

@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar as CalendarIcon, Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Plus, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getDaysRange, formatDate } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import { LikeButton, CommentTeaser } from '@/components/social';
 import Image from 'next/image';
+import type { MemberRole } from '@/types/models';
+import { MEMBER_ROLES } from '@/lib/constants';
+import { MessageCircle } from 'lucide-react';
 
 interface LogsClientProps {
   tripId: string;
@@ -32,11 +36,47 @@ export default function LogsClient({
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [logs, setLogs] = useState(initialLogs);
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<MemberRole | null>(null);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+
+  // 获取当前用户ID和角色信息
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+
+      if (user) {
+        // 获取用户在行程中的角色
+        const { data: memberData } = await supabase
+          .from('trip_members')
+          .select('role, is_blocked')
+          .eq('trip_id', tripId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (memberData) {
+          setUserRole(memberData.role);
+          setIsBlocked(memberData.is_blocked || false);
+        }
+      }
+    };
+    fetchUserInfo();
+  }, [tripId]);
 
   const days = getDaysRange(startDate, endDate);
 
+  // 过滤日志：云伴游看不到私密日志
+  const visibleLogs = logs.filter((log) => {
+    // 如果不是云伴游，可以看到所有日志
+    if (userRole !== 'companion') return true;
+    // 云伴游只能看公开日志
+    return !log.is_private;
+  });
+
   // 获取当前日期的所有记录
-  const currentLogs = logs
+  const currentLogs = visibleLogs
     .filter((log) => log.day_date === selectedDate)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -58,6 +98,22 @@ export default function LogsClient({
       setLoading(false);
     }
   };
+
+  // 切换评论区展开状态
+  const toggleComments = (logId: string) => {
+    setExpandedComments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(logId)) {
+        newSet.delete(logId);
+      } else {
+        newSet.add(logId);
+      }
+      return newSet;
+    });
+  };
+
+  // 检查用户是否可以互动（未屏蔽的成员或云伴游）
+  const canInteract = currentUserId && !isBlocked;
 
   // 删除记录
   const handleDelete = async (logId: string) => {
@@ -190,33 +246,40 @@ export default function LogsClient({
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Link href={`/trips/${tripId}/logs/${log.id}/edit?date=${selectedDate}`}>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-target">
-                        <Edit className="w-4 h-4 text-gray-600" />
+                  {/* 只有日志创建者可以编辑和删除 */}
+                  {currentUserId === log.created_by && (
+                    <div className="flex gap-2">
+                      <Link href={`/trips/${tripId}/logs/${log.id}/edit?date=${selectedDate}`}>
+                        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-target">
+                          <Edit className="w-4 h-4 text-gray-600" />
+                        </button>
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(log.id)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors touch-target"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-500" />
                       </button>
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(log.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors touch-target"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 内容 */}
                 {log.content && (
-                  <div className="mb-4">
-                    <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                      {log.content}
-                    </p>
-                  </div>
+                  <div 
+                    className="mb-4 prose-content"
+                    style={{
+                      wordBreak: 'break-word',
+                    }}
+                    dangerouslySetInnerHTML={{ 
+                      __html: log.content 
+                    }}
+                  />
                 )}
 
                 {/* 图片 */}
                 {log.images && log.images.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
                     {log.images.map((imageUrl: string, index: number) => (
                       <div key={index} className="aspect-square rounded-lg overflow-hidden border border-gray-200 relative">
                         <Image
@@ -227,6 +290,32 @@ export default function LogsClient({
                         />
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* 互动区域：点赞和评论 */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex items-center gap-4">
+                    <LikeButton
+                      tripId={tripId}
+                      targetType="log"
+                      targetId={log.id}
+                      readonly={!canInteract}
+                    />
+                    <CommentTeaser
+                      count={0} // TODO: 从后端获取实际评论数
+                      onOpen={() => toggleComments(log.id)}
+                    />
+                  </div>
+                </div>
+
+                {/* 评论区（展开时显示） */}
+                {expandedComments.has(log.id) && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    {/* TODO: 添加评论组件 */}
+                    <div className="text-sm text-gray-400 text-center py-4">
+                      评论区功能开发中...
+                    </div>
                   </div>
                 )}
               </div>

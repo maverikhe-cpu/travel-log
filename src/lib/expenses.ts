@@ -125,11 +125,16 @@ export const expenseService = {
 
     async deleteExpense(expenseId: string) {
         const supabase = createClient();
-        const { error } = await supabase
+        const { data, error, count } = await supabase
             .from('expenses')
-            .delete()
-            .eq('id', expenseId); // Cascade delete should handle splits if configured in DB
+            .delete({ count: 'exact' })
+            .eq('id', expenseId);
 
         if (error) throw error;
+
+        // 如果删除了 0 行，说明可能是权限问题
+        if (count === 0) {
+            throw new Error('删除失败：没有找到要删除的费用记录，可能是权限不足或记录已被删除');
+        }
     }
 };

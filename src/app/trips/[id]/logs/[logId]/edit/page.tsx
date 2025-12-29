@@ -32,6 +32,11 @@ export default async function EditLogPage({
     redirect(`/trips/${tripId}/logs`);
   }
 
+  // 检查权限：只有创建者可以编辑
+  if (log.created_by !== user.id) {
+    redirect(`/trips/${tripId}/logs`);
+  }
+
   const selectedDate = date || log.day_date;
 
   return (

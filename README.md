@@ -8,7 +8,7 @@
 
 ### 核心功能
 - **行程管理**: 创建旅行计划，设置日期范围，上传行程封面
-- **行程编辑**: 创建者可编辑行程信息（名称、描述、日期、封面）
+- **行程编辑**: 漫游长可编辑行程信息（名称、描述、日期、封面）
 - **封面上传**: 支持本地上传或从照片库选择封面
 
 ### 日历与活动
@@ -17,12 +17,23 @@
 - **地图视图**: 高德地图集成，可视化展示活动位置
 
 ### 团队协作
-- **分享码邀请**: 6位分享码快速邀请成员
-- **成员权限**: 三级权限（所有者/编辑者/查看者）
+- **角色权限**:
+  - **漫游长**: 所有权限，可移除成员
+  - **漫行客**: 可添加/编辑活动，可修改成员角色
+  - **查看者**: 仅查看内容
+  - **云伴游**: 可浏览行程、点赞评论，不可见费用
+- **邀请方式**: 分享码邀请，可选择邀请身份（正式成员/云伴游）
 - **个人资料**: 自定义头像和用户名
+- **成员管理**: 角色切换、屏蔽云伴游互动
+
+### 社交互动
+- **点赞评论**: 日志、照片、活动可点赞评论
+- **云伴游模式**: 朋友以云伴游身份围观行程，参与互动但不查看费用
+- **内容审核**: 举报不当评论，漫游长可删除
 
 ### 旅行记录
 - **多条记录**: 每个成员每天可创建多条旅行记录
+- **隐私设置**: 支持设置为私密（仅自己可见）
 - **富文本内容**: 记录旅行心得和见闻
 - **图片上传**: 每条记录最多上传10张图片
 - **照片库集成**: 旅行记录的图片自动展示在照片库
@@ -34,13 +45,16 @@
 - **灯箱查看**: 全屏查看、旋转、缩放、下载
 - **批量上传**: 支持一次上传多张照片
 - **自动压缩**: 客户端自动压缩图片，优化存储
+- **点赞评论**: 社交互动功能
 
 ### 费用管理
 - **费用记录**: 记录团队开销，支持6种分类
+- **快捷分摊**: 「仅自己」/「全选」快速选择分摊成员
 - **自动分摊**: 自动计算每人应付金额
 - **费用统计**: 查看总支出、个人支出、个人垫付
 - **结算报告**: 智能计算最优结算方案
 - **筛选排序**: 按分类、付款人、日期筛选
+- **权限控制**: 云伴游无法访问费用页面
 
 ## 技术栈
 
@@ -69,7 +83,15 @@
 6. `supabase/migrations/006_create_test_users.sql` - 创建测试用户（可选）
 7. `supabase/migrations/007_add_location_columns.sql` - 添加位置坐标字段
 8. `supabase/migrations/008_add_expenses_tables.sql` - 创建费用管理表
-9. `supabase/migrations/009_upgrade_travel_logs.sql` - 升级旅行记录表（支持多条记录和图片）
+9. `supabase/migrations/009_fix_expenses_update_policy.sql` - 修复费用更新策略
+10. `supabase/migrations/010_fix_profiles_rls.sql` - 修复用户表策略
+11. `supabase/migrations/011_fix_storage_policies.sql` - 修复存储策略
+12. `supabase/migrations/012_add_cloud_companion_role.sql` - 添加云伴游角色
+13. `supabase/migrations/013_create_comments_table.sql` - 创建评论表
+14. `supabase/migrations/014_create_likes_table.sql` - 创建点赞表
+15. `supabase/migrations/015_create_reports_table.sql` - 创建举报表
+16. `supabase/migrations/016_add_invite_tokens.sql` - 添加邀请令牌系统
+17. `supabase/migrations/017_fix_expenses_delete_policy.sql` - 修复费用删除策略
 
 ### 3. 获取 API 密钥
 
@@ -114,6 +136,19 @@ npm run dev
    ```
 3. 脚本会自动为该行程填充7天的川渝游活动数据
 
+### 创建测试用户
+
+```bash
+npm run test:users:create
+```
+
+创建的测试账号：
+- creator@test.com / Test123456 (漫游长)
+- editor@test.com / Test123456 (漫行客)
+- viewer@test.com / Test123456 (查看者)
+- companion1@test.com / Test123456 (云伴游)
+- companion2@test.com / Test123456 (云伴游)
+
 ### 检查数据库状态
 
 查看数据库中的旅程和活动数据：
@@ -139,9 +174,12 @@ src/
 │   └── trips/        # 行程相关页面
 ├── components/       # React 组件
 │   ├── ui/           # 基础 UI 组件
+│   ├── social/       # 社交互动组件
 │   └── ...
 ├── lib/              # 工具库
-│   └── supabase/     # Supabase 客户端
+│   ├── supabase/     # Supabase 客户端
+│   ├── social.ts     # 社交功能服务
+│   └── companions.ts # 成员管理服务
 ├── store/            # Zustand 状态管理
 └── types/            # TypeScript 类型
 ```

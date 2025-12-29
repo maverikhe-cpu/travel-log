@@ -19,7 +19,7 @@ export const TEST_USERS = {
   creator: {
     email: 'creator@example.com',
     password: 'Test123456',
-    name: '创建者',
+    name: '漫游长',
   },
 };
 

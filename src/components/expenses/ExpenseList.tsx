@@ -402,9 +402,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     setActiveMenu(null);
-                                                                    if (confirm('确定要删除这笔费用吗？')) {
-                                                                        onDelete(expense.id);
-                                                                    }
+                                                                    onDelete(expense.id);
                                                                 }}
                                                                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 text-red-600"
                                                             >

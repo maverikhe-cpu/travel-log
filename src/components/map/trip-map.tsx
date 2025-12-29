@@ -219,17 +219,22 @@ export default function TripMap({
                     return;
                   }
 
+                  // 使用 mapInstanceRef 中的地图实例，确保使用最新的引用
+                  const currentMap = mapInstanceRef.current || map;
+                  
                   // 在调用前再次验证 map
-                  if (!map || typeof map.add !== 'function') {
+                  if (!currentMap || typeof currentMap.add !== 'function') {
                     console.error('在添加标记时 map 无效', {
-                      hasMap: !!map,
-                      hasAddMethod: map ? typeof map.add === 'function' : false,
-                      activity: activity.title
+                      hasMap: !!currentMap,
+                      hasAddMethod: currentMap ? typeof currentMap.add === 'function' : false,
+                      activity: activity.title,
+                      usingRef: currentMap === mapInstanceRef.current,
+                      refHasMap: !!mapInstanceRef.current
                     });
                     return;
                   }
 
-                  const marker = addMarker(map, [activity.longitude, activity.latitude], {
+                  const marker = addMarker(currentMap, [activity.longitude, activity.latitude], {
                     title: activity.title,
                     color: color, // 直接使用完整颜色值
                   });
@@ -240,6 +245,12 @@ export default function TripMap({
                   }
 
                   // 创建信息窗口
+                  if (!AMap.InfoWindow || !AMap.Pixel) {
+                    console.warn(`活动 "${activity.title}" InfoWindow 类未加载，跳过信息窗口`);
+                    newMarkers.push(marker);
+                    return;
+                  }
+                  
                   const infoWindow = new AMap.InfoWindow({
                     content: `
                       <div style="padding: 8px; min-width: 150px;">
@@ -257,14 +268,14 @@ export default function TripMap({
                   });
 
                   marker.on('click', () => {
-                    infoWindow.open(map, marker.getPosition());
+                    infoWindow.open(currentMap, marker.getPosition());
                     if (onActivityClick) {
                       onActivityClick(activity);
                     }
                   });
 
                   newMarkers.push(marker);
-                } catch (markerErr) {
+                } catch (markerErr: any) {
                   console.error('添加标记失败:', activity.title, markerErr);
                 }
               });

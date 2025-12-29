@@ -24,7 +24,7 @@ export interface Trip {
 }
 
 // 行程成员角色
-export type MemberRole = 'owner' | 'editor' | 'viewer';
+export type MemberRole = 'owner' | 'editor' | 'viewer' | 'companion';
 
 // 行程成员
 export interface TripMember {
@@ -33,6 +33,7 @@ export interface TripMember {
   user_id: string;
   role: MemberRole;
   joined_at: string;
+  is_blocked?: boolean; // 是否被屏蔽（仅用于云伴游）
   profile?: Profile;
   profiles?: Profile;
 }
@@ -127,4 +128,59 @@ export interface ExpenseSplit {
   expense_id: string;
   user_id: string; // 分摊人 ID
   amount: number; // 分摊金额
+}
+
+// ============================================
+// 社交功能相关类型
+// ============================================
+
+// 评论目标类型
+export type CommentTargetType = 'log' | 'image' | 'activity';
+
+// 评论
+export interface Comment {
+  id: string;
+  trip_id: string;
+  target_type: CommentTargetType;
+  target_id: string;
+  content: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  profile?: Profile;
+  // 统计字段（非数据库字段）
+  like_count?: number;
+  is_liked?: boolean;
+}
+
+// 点赞目标类型
+export type LikeTargetType = 'log' | 'image' | 'comment';
+
+// 点赞
+export interface Like {
+  id: string;
+  target_type: LikeTargetType;
+  target_id: string;
+  user_id: string;
+  trip_id: string;
+  created_at: string;
+}
+
+// 举报状态
+export type ReportStatus = 'pending' | 'resolved' | 'dismissed';
+
+// 举报
+export interface Report {
+  id: string;
+  trip_id: string;
+  reporter_id: string;
+  target_type: 'comment';
+  target_id: string;
+  reason?: string;
+  status: ReportStatus;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  created_at: string;
+  reporter_profile?: Profile;
+  reviewer_profile?: Profile;
 }
