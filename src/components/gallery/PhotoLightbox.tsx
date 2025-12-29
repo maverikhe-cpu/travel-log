@@ -160,6 +160,7 @@ export default function PhotoLightbox({
               width={1920}
               height={1080}
               className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+              style={{ width: 'auto', height: 'auto' }}
             />
           </div>
         </div>

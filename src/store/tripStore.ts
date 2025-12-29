@@ -83,6 +83,7 @@ export const useTripStore = create<TripState>((set) => ({
 
       let updatedSplits = state.expenseSplits;
       if (newSplits) {
+        // Remove all existing splits for this expense, then add new ones
         updatedSplits = state.expenseSplits.filter(s => s.expense_id !== id).concat(newSplits);
       }
 

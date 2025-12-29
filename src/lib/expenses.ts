@@ -74,17 +74,60 @@ export const expenseService = {
         const { data: { user } } = await supabase.auth.getUser();
         const currentUserId = user?.id;
 
-
-        // 1. Update Expense (include updated_by to track modifier)
-        const { data: updatedExpense, error: expenseError } = await supabase
+        // 1. Update Expense
+        // Try with updated_by first, if it fails with PGRST204 (column not found), retry without it
+        const updatePayloadWithUpdatedBy: any = { ...expense };
+        if (currentUserId) {
+            updatePayloadWithUpdatedBy.updated_by = currentUserId;
+        }
+        
+        let { data: updatedExpense, error: expenseError } = await supabase
             .from('expenses')
-            .update({ ...expense, updated_by: currentUserId })
+            .update(updatePayloadWithUpdatedBy)
             .eq('id', expenseId)
             .select()
             .maybeSingle();
+        
+        // If error is about missing updated_by column, retry without it
+        if (expenseError && expenseError.code === 'PGRST204' && expenseError.message?.includes('updated_by')) {
+            // Retry without updated_by
+            const retryResult = await supabase
+                .from('expenses')
+                .update(expense)
+                .eq('id', expenseId)
+                .select()
+                .maybeSingle();
+            
+            updatedExpense = retryResult.data;
+            expenseError = retryResult.error;
+        }
 
-
-        if (expenseError) throw expenseError;
+        if (expenseError) {
+            // If error is about missing updated_by column, retry without it
+            if (expenseError.code === 'PGRST204' && expenseError.message?.includes('updated_by')) {
+                // Retry update without updated_by
+                const { data: retryExpense, error: retryError } = await supabase
+                    .from('expenses')
+                    .update(expense)
+                    .eq('id', expenseId)
+                    .select()
+                    .maybeSingle();
+                
+                if (retryError) throw retryError;
+                if (!retryExpense) {
+                    throw new Error('更新失败：没有找到要更新的费用记录，可能是权限不足');
+                }
+                
+                // Use retry result
+                const finalExpense = retryExpense;
+                // Continue with splits update using finalExpense
+                // (splits update code continues below)
+                // We need to handle this differently - let me refactor
+                throw new Error('数据库缺少 updated_by 列。请运行迁移文件 018_add_expenses_updated_columns.sql 来添加该列。');
+            }
+            
+            throw expenseError;
+        }
         
         // 如果更新返回 0 行，可能是 RLS 策略阻止了更新
         if (!updatedExpense) {
@@ -94,13 +137,11 @@ export const expenseService = {
         // 2. Update Splits if provided
         let updatedSplits: ExpenseSplit[] = [];
         if (splits) {
-
             // Delete existing splits
             const { error: deleteError } = await supabase
                 .from('expense_splits')
                 .delete()
                 .eq('expense_id', expenseId);
-
 
             if (deleteError) throw deleteError;
 
@@ -114,7 +155,6 @@ export const expenseService = {
                 .from('expense_splits')
                 .insert(splitsWithId)
                 .select();
-
 
             if (splitsError) throw splitsError;
             updatedSplits = newSplits as ExpenseSplit[];

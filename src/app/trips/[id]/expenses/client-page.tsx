@@ -48,21 +48,16 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
             // Remove duplicates from involved_users
             const uniqueUsers = Array.from(new Set(data.involved_users as string[]));
             
-            // Calculate splits
+            // Calculate splits using Math.round to avoid floating point precision issues
             const splitCount = uniqueUsers.length;
-            const splitAmount = parseFloat((data.amount / splitCount).toFixed(2));
+            const baseAmount = Math.round((data.amount / splitCount) * 100) / 100;
+            const remainder = Math.round((data.amount - baseAmount * splitCount) * 100) / 100;
 
-            const splitsPayload = uniqueUsers.map((uid) => ({
+            const splitsPayload = uniqueUsers.map((uid, index) => ({
                 user_id: uid,
-                amount: splitAmount
+                // First user gets the remainder to ensure total matches exactly
+                amount: index === 0 ? Math.round((baseAmount + remainder) * 100) / 100 : baseAmount
             }));
-
-            // Distribute remainder cents
-            const totalSplit = splitAmount * splitCount;
-            const diff = data.amount - totalSplit;
-            if (Math.abs(diff) > 0.001) {
-                splitsPayload[0].amount += diff;
-            }
 
             const payload = {
                 trip_id: trip.id,
@@ -90,27 +85,23 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
         if (!editingExpense) return;
 
         setIsSubmitting(true);
+        let payload: any = null;
         try {
-
             // Remove duplicates from involved_users
             const uniqueUsers = Array.from(new Set(data.involved_users as string[]));
             
             const splitCount = uniqueUsers.length;
-            const splitAmount = parseFloat((data.amount / splitCount).toFixed(2));
+            // Use Math.round to avoid floating point precision issues
+            const baseAmount = Math.round((data.amount / splitCount) * 100) / 100;
+            const remainder = Math.round((data.amount - baseAmount * splitCount) * 100) / 100;
 
-            const splitsPayload = uniqueUsers.map((uid) => ({
+            const splitsPayload = uniqueUsers.map((uid, index) => ({
                 user_id: uid,
-                amount: splitAmount
+                // First user gets the remainder to ensure total matches exactly
+                amount: index === 0 ? Math.round((baseAmount + remainder) * 100) / 100 : baseAmount
             }));
 
-            // Distribute remainder cents
-            const totalSplit = splitAmount * splitCount;
-            const diff = data.amount - totalSplit;
-            if (Math.abs(diff) > 0.001) {
-                splitsPayload[0].amount += diff;
-            }
-
-            const payload = {
+            payload = {
                 title: data.title,
                 amount: data.amount,
                 category: data.category,
@@ -125,11 +116,9 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
                 splitsPayload
             );
 
-
             updateExpenseStore(editingExpense.id, payload, splits);
             router.refresh();
-        } catch (error) {
-
+        } catch (error: any) {
             console.error('Failed to update expense', error);
             alert('更新失败，请重试');
         } finally {
@@ -139,9 +128,12 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
 
     const handleEditClick = (expense: Expense) => {
         // Get existing splits for this expense
-        const existingSplits = expenseSplits
+        const rawSplits = expenseSplits
             .filter(s => s.expense_id === expense.id)
             .map(s => s.user_id);
+        
+        // Remove duplicates
+        const existingSplits = Array.from(new Set(rawSplits));
 
         setEditingExpense(expense);
         setEditingExpenseSplits(existingSplits);
@@ -188,6 +180,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
                         size="sm"
                         className="text-ink-600 hover:text-primary-600 gap-2"
                         onClick={() => setIsReportOpen(true)}
+                        data-testid="settlement-report-button"
                     >
                         <FileText className="w-4 h-4" />
                         <span className="hidden sm:inline">结算报告</span>
@@ -204,7 +197,7 @@ export default function ExpensesClientPage({ trip, expenses: initialExpenses, sp
 
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-serif font-bold text-ink-900">支出明细</h2>
-                    <Button onClick={() => setIsAddModalOpen(true)} className="rounded-full shadow-lg shadow-primary-500/20">
+                    <Button onClick={() => setIsAddModalOpen(true)} className="rounded-full shadow-lg shadow-primary-500/20" data-testid="add-expense-button">
                         <Plus className="w-4 h-4 mr-2" />
                         记一笔
                     </Button>

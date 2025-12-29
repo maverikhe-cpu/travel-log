@@ -179,6 +179,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                         onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white/50 text-ink-600 hover:bg-white border border-ink-100 transition-colors"
                         title={sortOrder === 'newest' ? '最新在前' : '最旧在前'}
+                        data-testid="sort-toggle-button"
                     >
                         <ArrowUpDown className={`w-4 h-4 transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} />
                         {sortOrder === 'newest' ? '最新' : '最旧'}
@@ -193,6 +194,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                 ? 'bg-primary-500 text-white'
                                 : 'bg-white/50 text-ink-600 hover:bg-white border border-ink-100'
                         }`}
+                        data-testid="filter-toggle-button"
                     >
                         <Filter className="w-4 h-4" />
                         筛选
@@ -211,6 +213,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                     <button
                                         onClick={clearFilters}
                                         className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                                        data-testid="filter-clear-button"
                                     >
                                         <X className="w-3 h-3" />
                                         清空
@@ -229,6 +232,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                 ? 'bg-primary-500 text-white'
                                                 : 'bg-gray-100 text-ink-600 hover:bg-gray-200'
                                         }`}
+                                        data-testid="filter-category-all"
                                     >
                                         全部
                                     </button>
@@ -241,6 +245,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                     ? 'bg-primary-500 text-white'
                                                     : 'bg-gray-100 text-ink-600 hover:bg-gray-200'
                                             }`}
+                                            data-testid={`filter-category-${key}`}
                                         >
                                             {label}
                                         </button>
@@ -259,6 +264,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                 ? 'bg-primary-500 text-white'
                                                 : 'bg-gray-100 text-ink-600 hover:bg-gray-200'
                                         }`}
+                                        data-testid="filter-payer-all"
                                     >
                                         全部
                                     </button>
@@ -271,6 +277,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                     ? 'bg-primary-500 text-white'
                                                     : 'bg-gray-100 text-ink-600 hover:bg-gray-200'
                                             }`}
+                                            data-testid={`filter-payer-${member.user_id}`}
                                         >
                                             {member.user_id === currentUserId ? '我' : getMemberName(member.user_id)}
                                         </button>
@@ -357,6 +364,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                 return (
                     <div
                         key={expense.id}
+                        data-testid={`expense-item-${expense.id}`}
                         className="glass-card p-4 rounded-xl hover:bg-white/60 transition-colors group"
                     >
                         <div className="flex items-center gap-4">
@@ -392,6 +400,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                                     onEdit(expense);
                                                                 }}
                                                                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 text-ink-700"
+                                                                data-testid={`expense-edit-${expense.id}`}
                                                             >
                                                                 <Pencil className="w-3 h-3" />
                                                                 编辑
@@ -405,6 +414,7 @@ export default function ExpenseList({ expenses, members, currentUserId, onEdit, 
                                                                     onDelete(expense.id);
                                                                 }}
                                                                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-red-50 text-red-600"
+                                                                data-testid={`expense-delete-${expense.id}`}
                                                             >
                                                                 <Trash2 className="w-3 h-3" />
                                                                 删除

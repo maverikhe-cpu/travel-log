@@ -161,3 +161,173 @@ export async function screenshotMatch(page: Page, name: string) {
 export async function clearInput(page: Page, selector: string) {
   await page.fill(selector, '');
 }
+
+/**
+ * 费用相关类型定义
+ */
+export type ExpenseCategory = 'food' | 'transport' | 'accommodation' | 'ticket' | 'shopping' | 'other';
+
+/**
+ * 创建费用记录
+ * @param page Page 实例
+ * @param data 费用数据
+ * @returns 费用标题（用于后续查找）
+ */
+export async function createExpense(page: Page, data: {
+  title: string;
+  amount: string;
+  category: ExpenseCategory;
+  payerName?: string; // 垫付人名称，如"我"、"Alice"等
+  date?: string; // YYYY-MM-DD 格式
+  participants?: number; // 参与人数，默认全选
+}): Promise<string> {
+  // 打开添加费用模态框
+  await page.click('[data-testid="add-expense-button"]');
+
+  // 填写金额
+  await page.fill('[data-testid="expense-amount-input"]', data.amount);
+
+  // 填写标题
+  await page.fill('[data-testid="expense-title-input"]', data.title);
+
+  // 选择分类
+  await page.selectOption('[data-testid="expense-category-select"]', data.category);
+
+  // 选择日期（如果提供）
+  if (data.date) {
+    await page.fill('[data-testid="expense-date-input"]', data.date);
+  }
+
+  // 选择垫付人（如果提供）
+  if (data.payerName) {
+    await page.selectOption('[data-testid="expense-payer-select"]', [{ label: data.payerName }]);
+  }
+
+  // 默认全选参与者，不做修改
+  // 如果需要部分参与者，可以点击取消选中
+
+  // 提交表单
+  await page.click('[data-testid="expense-submit-button"]');
+
+  // 等待模态框关闭
+  await page.waitForSelector('[data-testid="expense-amount-input"]', { state: 'hidden', timeout: 5000 });
+
+  return data.title;
+}
+
+/**
+ * 编辑费用记录
+ * @param page Page 实例
+ * @param expenseTitle 费用标题（用于查找）
+ * @param newData 要更新的数据
+ */
+export async function editExpense(page: Page, expenseTitle: string, newData: {
+  title?: string;
+  amount?: string;
+  category?: ExpenseCategory;
+}): Promise<void> {
+  // 找到对应的费用卡片并点击编辑按钮
+  const expenseCard = page.locator(`.expense-item`).filter({ hasText: expenseTitle });
+  await expenseCard.locator('button').filter({ hasText: '编辑' }).click();
+
+  // 更新数据
+  if (newData.title !== undefined) {
+    await page.fill('[data-testid="expense-title-input"]', newData.title);
+  }
+  if (newData.amount !== undefined) {
+    await page.fill('[data-testid="expense-amount-input"]', newData.amount);
+  }
+  if (newData.category !== undefined) {
+    await page.selectOption('[data-testid="expense-category-select"]', newData.category);
+  }
+
+  // 提交更新
+  await page.click('[data-testid="expense-submit-button"]');
+
+  // 等待模态框关闭
+  await page.waitForSelector('[data-testid="expense-title-input"]', { state: 'hidden', timeout: 5000 });
+}
+
+/**
+ * 删除费用记录
+ * @param page Page 实例
+ * @param expenseTitle 费用标题（用于查找）
+ */
+export async function deleteExpense(page: Page, expenseTitle: string): Promise<void> {
+  // 找到对应的费用卡片并点击菜单按钮
+  const expenseCard = page.locator(`[data-testid^="expense-item-"]`).filter({ hasText: expenseTitle });
+
+  // 点击三个点菜单
+  await expenseCard.locator('button').filter({ hasText: '' }).first().click();
+
+  // 点击删除按钮
+  await page.click('[data-testid^="expense-delete-"]');
+
+  // 确认删除
+  page.on('dialog', dialog => dialog.accept());
+}
+
+/**
+ * 验证统计数据
+ * @param page Page 实例
+ * @param stats 期望的统计数据
+ */
+export async function expectDashboardStats(page: Page, stats: {
+  total: string;
+  myExpense?: string;
+  myAdvance?: string;
+}): Promise<void> {
+  const totalAmount = await page.textContent('[data-testid="dashboard-total-amount"]');
+  // 移除 ¥ 符号和空格进行比较
+  const normalizeAmount = (s: string | null) => s?.replace(/[\s¥]/g, '') || '';
+  expect(normalizeAmount(totalAmount)).toBe(stats.total);
+
+  if (stats.myExpense !== undefined) {
+    const myExpenseAmount = await page.textContent('[data-testid="dashboard-my-expense-amount"]');
+    expect(normalizeAmount(myExpenseAmount)).toBe(stats.myExpense);
+  }
+
+  if (stats.myAdvance !== undefined) {
+    const myAdvanceAmount = await page.textContent('[data-testid="dashboard-my-advance-amount"]');
+    expect(normalizeAmount(myAdvanceAmount)).toBe(stats.myAdvance);
+  }
+}
+
+/**
+ * 获取费用卡片数量
+ */
+export async function getExpenseCount(page: Page): Promise<number> {
+  return await page.locator('[data-testid^="expense-item-"]').count();
+}
+
+/**
+ * 打开结算报告
+ */
+export async function openSettlementReport(page: Page): Promise<void> {
+  await page.click('[data-testid="settlement-report-button"]');
+  await page.waitForSelector('.settlement-modal, [data-testid="settlement-modal"]', { timeout: 5000 });
+}
+
+/**
+ * 等待费用出现在列表中
+ */
+export async function waitForExpense(page: Page, expenseTitle: string): Promise<void> {
+  await page.waitForSelector(`[data-testid^="expense-item-"]`, { timeout: 5000 });
+  const expenseCard = page.locator(`[data-testid^="expense-item-"]`).filter({ hasText: expenseTitle });
+  await expect(expenseCard).toBeVisible();
+}
+
+/**
+ * 获取分类中文名称
+ */
+export function getCategoryLabel(category: ExpenseCategory): string {
+  const labels: Record<ExpenseCategory, string> = {
+    food: '餐饮',
+    transport: '交通',
+    accommodation: '住宿',
+    ticket: '门票',
+    shopping: '购物',
+    other: '其他',
+  };
+  return labels[category];
+}

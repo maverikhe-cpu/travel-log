@@ -54,12 +54,16 @@ export default function ExpenseFormModal({
         if (isOpen) {
             if (editExpense && isExpenseChanged) {
                 // Edit mode: populate with existing data
+                // Remove duplicates from existingSplits
+                const uniqueExistingSplits = Array.from(new Set(existingSplits));
+                const initialUsers = uniqueExistingSplits.length > 0 ? uniqueExistingSplits : members.map(m => m.user_id);
+                
                 setTitle(editExpense.title);
                 setAmount(editExpense.amount.toString());
                 setCategory(editExpense.category);
                 setPayerId(editExpense.payer_id);
                 setDate(editExpense.expense_date);
-                setInvolvedUsers(existingSplits.length > 0 ? existingSplits : members.map(m => m.user_id));
+                setInvolvedUsers(initialUsers);
                 lastEditExpenseId.current = editExpense.id;
             } else if (!editExpense) {
                 // Add mode: reset to defaults
@@ -81,25 +85,35 @@ export default function ExpenseFormModal({
         e.preventDefault();
         if (!title || !amount || involvedUsers.length === 0) return;
 
+        // Remove duplicates before submitting
+        const uniqueInvolvedUsers = Array.from(new Set(involvedUsers));
+
         onSave({
             title,
             amount: parseFloat(amount),
             category,
             payer_id: payerId,
             expense_date: date,
-            involved_users: involvedUsers,
+            involved_users: uniqueInvolvedUsers,
         });
         onClose();
     };
 
     const toggleUser = (userId: string) => {
-        if (involvedUsers.includes(userId)) {
+        const wasIncluded = involvedUsers.includes(userId);
+        let newUsers: string[];
+        
+        if (wasIncluded) {
             if (involvedUsers.length > 1) {
-                setInvolvedUsers(involvedUsers.filter(id => id !== userId));
+                newUsers = involvedUsers.filter(id => id !== userId);
+            } else {
+                newUsers = involvedUsers; // Can't remove last user
             }
         } else {
-            setInvolvedUsers([...involvedUsers, userId]);
+            newUsers = [...involvedUsers, userId];
         }
+
+        setInvolvedUsers(newUsers);
     };
 
     const getMemberName = (userId: string) => {
@@ -160,6 +174,7 @@ export default function ExpenseFormModal({
                             onChange={(e) => setAmount(e.target.value)}
                             className="w-full bg-white/50 border border-ink-100 rounded-xl py-4 pl-12 pr-4 text-3xl font-bold text-ink-900 placeholder:text-ink-200 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all font-mono"
                             autoFocus
+                            data-testid="expense-amount-input"
                         />
                     </div>
 
@@ -177,6 +192,7 @@ export default function ExpenseFormModal({
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     className="w-full bg-white/50 border border-ink-100 rounded-lg py-2 pl-9 pr-3 text-sm text-ink-900 focus:outline-none focus:border-primary-500 transition-colors"
+                                    data-testid="expense-title-input"
                                 />
                             </div>
                         </div>
@@ -187,6 +203,7 @@ export default function ExpenseFormModal({
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
                                 className="w-full bg-white/50 border border-ink-100 rounded-lg py-2 px-3 text-sm text-ink-900 focus:outline-none focus:border-primary-500 transition-colors appearance-none"
+                                data-testid="expense-category-select"
                             >
                                 {CATEGORIES.map(c => (
                                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -207,6 +224,7 @@ export default function ExpenseFormModal({
                                     value={payerId}
                                     onChange={(e) => setPayerId(e.target.value)}
                                     className="w-full bg-white/50 border border-ink-100 rounded-lg py-2 pl-9 px-3 text-sm text-ink-900 focus:outline-none focus:border-primary-500 transition-colors appearance-none"
+                                    data-testid="expense-payer-select"
                                 >
                                     {members.map(m => (
                                         <option key={m.user_id} value={m.user_id}>
@@ -228,6 +246,7 @@ export default function ExpenseFormModal({
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
                                     className="w-full bg-white/50 border border-ink-100 rounded-lg py-2 pl-9 pr-3 text-sm text-ink-900 focus:outline-none focus:border-primary-500 transition-colors"
+                                    data-testid="expense-date-input"
                                 />
                             </div>
                         </div>
@@ -268,6 +287,7 @@ export default function ExpenseFormModal({
                                         key={member.user_id}
                                         type="button"
                                         onClick={() => toggleUser(member.user_id)}
+                                        data-testid={`participant-${member.user_id}`}
                                         className={`
                                             flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all
                                             ${isSelected
@@ -288,6 +308,7 @@ export default function ExpenseFormModal({
                         type="submit"
                         className="w-full h-12 text-base mt-4 bg-ink-900 hover:bg-ink-800 text-white rounded-xl shadow-lg hover:shadow-xl transition-all"
                         disabled={!title || !amount || involvedUsers.length === 0}
+                        data-testid="expense-submit-button"
                     >
                         {editExpense ? '更新' : '保存'}
                     </Button>

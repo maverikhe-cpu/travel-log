@@ -34,6 +34,9 @@ npm run test:report   # Open test report
 # 7. supabase/migrations/007_add_location_columns.sql
 # 8. supabase/migrations/008_add_expenses_tables.sql
 # 9. supabase/migrations/009_upgrade_travel_logs.sql
+# 10. supabase/migrations/012_random_photo_reassign.sql
+# 11. supabase/migrations/018_add_expenses_updated_columns.sql
+# 12. supabase/migrations/019_fix_expense_splits_policies.sql
 
 # Test Users Setup
 npm run test:users:create   # Create test users in Supabase
@@ -216,6 +219,11 @@ The expense module (`/trips/[id]/expenses`) provides group expense tracking and 
 - `Expense` - Main expense record (id, trip_id, title, amount, category, payer_id, expense_date, created_by, updated_by, created_at, updated_at)
 - `ExpenseSplit` - Per-user split amount (links expense to user)
 
+**Error Handling**:
+- Graceful handling of missing `updated_by` column (legacy DB compatibility)
+- RLS policy validation with clear error messages
+- Automatic retry logic for schema version differences
+
 **Features**:
 - **Create Expense**: Add new expenses with category, amount, payer, and participants
 - **Edit Expense**: Modify expense details (creator and editors only)
@@ -330,9 +338,16 @@ When removing images in edit mode:
 
 **E2E Tests** (Playwright):
 - Test files in `e2e/` directory
-- Helper functions in `e2e/helpers.ts` (login, register, createTrip, etc.)
+- Helper functions in `e2e/helpers.ts` (login, register, createTrip, createExpense, editExpense, deleteExpense, etc.)
 - Test users defined in `TEST_USERS` constant
 - Configure `AUTO_REGISTER=true` to auto-register test users
+- Test files include:
+  - `e2e/expenses/expense-crud.spec.ts` - Expense CRUD operations (20+ test cases)
+  - `e2e/auth/auth.spec.ts` - Authentication flows
+  - `e2e/trips/trips.spec.ts` - Trip management
+  - `e2e/gallery/gallery.spec.ts` - Photo gallery
+  - `e2e/logs/logs.spec.ts` - Travel logs
+  - `e2e/members/members.spec.ts` - Team management
 
 **Lighthouse CI**:
 - `npm run lhci` - Run Lighthouse performance audits

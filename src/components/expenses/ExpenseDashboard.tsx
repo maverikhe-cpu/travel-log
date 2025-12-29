@@ -83,7 +83,7 @@ export default function ExpenseDashboard({ expenses, expenseSplits, currentUserI
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300" data-testid="dashboard-total-expense">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary-100/50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
@@ -92,13 +92,13 @@ export default function ExpenseDashboard({ expenses, expenseSplits, currentUserI
                         </div>
                         <h3 className="text-sm font-medium text-ink-500">行程总支出</h3>
                     </div>
-                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2">
+                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2" data-testid="dashboard-total-amount">
                         {formatMoney(stats.totalSpend)}
                     </p>
                 </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300" data-testid="dashboard-my-expense">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-orange-100/50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
@@ -107,13 +107,13 @@ export default function ExpenseDashboard({ expenses, expenseSplits, currentUserI
                         </div>
                         <h3 className="text-sm font-medium text-ink-500">我的消费</h3>
                     </div>
-                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2">
+                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2" data-testid="dashboard-my-expense-amount">
                         {formatMoney(stats.mySpend)}
                     </p>
                 </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+            <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300" data-testid="dashboard-my-advance">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-100/50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
@@ -122,7 +122,7 @@ export default function ExpenseDashboard({ expenses, expenseSplits, currentUserI
                         </div>
                         <h3 className="text-sm font-medium text-ink-500">我的垫付</h3>
                     </div>
-                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2">
+                    <p className="text-2xl font-serif font-bold text-ink-900 mt-2" data-testid="dashboard-my-advance-amount">
                         {formatMoney(stats.myAdvanced)}
                     </p>
                 </div>
