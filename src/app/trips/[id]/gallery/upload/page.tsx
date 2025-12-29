@@ -62,9 +62,9 @@ export default function ImageUploadPage() {
       // 创建预览
       const preview = URL.createObjectURL(file);
 
-      // 压缩图片
+      // 压缩图片 - 使用高质量设置
       try {
-        const { blob, width, height } = await compressImage(file, 2000, 0.8);
+        const { blob, width, height } = await compressImage(file, 2000, 0.92);
         processedFiles.push({
           file,
           preview,
@@ -152,7 +152,7 @@ export default function ImageUploadPage() {
       const thumbnailUrl = `${publicUrl}?width=400&quality=80`;
 
       // 保存到数据库
-      const { error: dbError } = await supabase.from('trip_images').insert({
+      const { data: insertData, error: dbError } = await supabase.from('trip_images').insert({
         trip_id: tripId,
         day_date: date,
         user_id: user.id,
@@ -163,11 +163,14 @@ export default function ImageUploadPage() {
         file_size: uploadFile.compressed?.size || uploadFile.file.size,
         width: uploadFile.width,
         height: uploadFile.height,
-      });
+      }).select();
 
       if (dbError) {
+        console.error('Database insert error:', dbError);
         throw dbError;
       }
+
+      console.log('Image saved to database:', insertData);
 
       // 标记上传成功
       setFiles(prev => prev.map((f, i) => i === index ? { ...f, uploading: false } : f));
@@ -374,7 +377,7 @@ export default function ImageUploadPage() {
         {/* 提示信息 */}
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-blue-800">
-            💡 图片会自动压缩（宽度≤2000px），节省存储空间。上传后按日期分组展示在照片库中。
+            💡 大图会自动压缩（最大尺寸≤2000px），小图保持原样。使用高质量压缩算法，最大程度保留照片质量。上传后按日期分组展示在照片库中。
           </p>
         </div>
       </main>

@@ -256,7 +256,7 @@ export const IMAGE_UPLOAD_LIMITS = {
   MAX_COUNT: 10,
   MAX_SIZE_MB: 5,
   MAX_WIDTH: 2000,
-  COMPRESS_QUALITY: 0.8,
+  COMPRESS_QUALITY: 0.92, // 提高质量以减少损失
   ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
 };
 

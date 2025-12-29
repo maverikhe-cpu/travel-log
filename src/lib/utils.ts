@@ -46,28 +46,53 @@ export function getDaysRange(startDate: string, endDate: string): Date[] {
   return dates;
 }
 
-// 图片压缩
+// 图片压缩 - 优化版本，最小化质量损失
 export async function compressImage(
   file: File,
   maxWidth = 2000,
-  quality = 0.8
+  quality = 0.92
 ): Promise<{ blob: Blob; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      // 如果原图尺寸已经小于 maxWidth，不进行压缩，直接返回原图
+      if (img.width <= maxWidth && img.height <= maxWidth) {
+        file.arrayBuffer().then(buffer => {
+          resolve({
+            blob: new Blob([buffer], { type: file.type }),
+            width: img.width,
+            height: img.height,
+          });
+        }).catch(reject);
+        return;
+      }
+
       const canvas = document.createElement('canvas');
-      const scale = Math.min(1, maxWidth / img.width);
+      const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
 
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
 
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d', { 
+        alpha: true,
+        willReadFrequently: false 
+      });
       if (!ctx) {
         reject(new Error('无法获取 canvas context'));
         return;
       }
 
+      // 启用高质量图像平滑算法
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // 绘制图片
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // 根据原图格式选择输出格式，保留透明度
+      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      // PNG 格式不支持 quality 参数，JPEG 使用高质量
+      const outputQuality = outputType === 'image/png' ? undefined : quality;
 
       canvas.toBlob(
         (blob) => {
@@ -77,8 +102,8 @@ export async function compressImage(
             reject(new Error('图片压缩失败'));
           }
         },
-        'image/jpeg',
-        quality
+        outputType,
+        outputQuality
       );
     };
     img.onerror = reject;
