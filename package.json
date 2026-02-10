@@ -16,7 +16,9 @@
     "lhci": "lhci autorun",
     "lhci:upload": "lhci upload",
     "test:users:create": "tsx scripts/setup-test-users.ts",
-    "seed:activities": "node scripts/seed-activities.js"
+    "seed:activities": "node scripts/seed-activities.js",
+    "deploy:zeabur": "zeabur",
+    "deploy:zeabur:prod": "zeabur --prod"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
