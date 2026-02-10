@@ -11,13 +11,20 @@ test.describe('行程管理模块', () => {
       const tripName = '川渝旅行' + Date.now();
 
       await page.goto('/trips/new');
-      await page.fill('input[name="name"]', tripName);
-      await page.fill('input[name="startDate"]', '2025-03-15');
-      await page.fill('input[name="endDate"]', '2025-03-21');
+      
+      // 等待页面加载完成
+      await page.waitForLoadState('networkidle');
+      
+      // 等待元素可见
+      await page.waitForSelector('#name', { state: 'visible', timeout: 10000 });
+      
+      await page.fill('#name', tripName);
+      await page.fill('#startDate', '2025-03-15');
+      await page.fill('#endDate', '2025-03-21');
       await page.click('button[type="submit"]');
 
       // 验证跳转到行程详情
-      await expect(page).toHaveURL(/\/trips\/[a-f0-9-]+$/);
+      await expect(page).toHaveURL(/\/trips\/[a-f0-9-]+$/, { timeout: 15000 });
 
       // 验证显示行程名称
       await expect(page.locator(`text=${tripName}`)).toBeVisible();
@@ -25,9 +32,13 @@ test.describe('行程管理模块', () => {
 
     test('结束日期早于开始日期', async ({ page }) => {
       await page.goto('/trips/new');
-      await page.fill('input[name="name"]', '测试行程');
-      await page.fill('input[name="startDate"]', '2025-03-21');
-      await page.fill('input[name="endDate"]', '2025-03-15');
+      
+      // 等待页面加载完成
+      await page.waitForLoadState('networkidle');
+      
+      await page.fill('#name', '测试行程');
+      await page.fill('#startDate', '2025-03-21');
+      await page.fill('#endDate', '2025-03-15');
       await page.click('button[type="submit"]');
 
       // 验证日期验证（具体验证取决于实现）
@@ -36,12 +47,16 @@ test.describe('行程管理模块', () => {
 
     test('空名称验证', async ({ page }) => {
       await page.goto('/trips/new');
-      await page.fill('input[name="startDate"]', '2025-03-15');
-      await page.fill('input[name="endDate"]', '2025-03-21');
+      
+      // 等待页面加载完成
+      await page.waitForLoadState('networkidle');
+      
+      await page.fill('#startDate', '2025-03-15');
+      await page.fill('#endDate', '2025-03-21');
       await page.click('button[type="submit"]');
 
       // 验证名称输入框必填
-      const nameInput = page.locator('input[name="name"]');
+      const nameInput = page.locator('#name');
       await expect(nameInput).toHaveAttribute('required', '');
     });
   });

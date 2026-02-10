@@ -112,9 +112,9 @@ export async function register(page: Page, email: string, password: string, user
  */
 export async function createTrip(page: Page, name: string, startDate: string, endDate: string) {
   await page.goto('/trips/new');
-  await page.fill('input[name="name"]', name);
-  await page.fill('input[name="startDate"]', startDate);
-  await page.fill('input[name="endDate"]', endDate);
+  await page.fill('#name', name);
+  await page.fill('#startDate', startDate);
+  await page.fill('#endDate', endDate);
   await page.click('button[type="submit"]');
 
   // 等待跳转到行程详情
